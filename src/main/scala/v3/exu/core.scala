@@ -46,6 +46,10 @@ import boom.v3.exu.FUConstants._
 import boom.v3.util._
 
 import difftest._
+import rvspeccore.core.RVConfig
+import rvspeccore.checker._
+import rvspeccore.core.spec._
+
 /**
  * Top level core object that connects the Frontend to the rest of the pipeline.
  */
@@ -1339,7 +1343,9 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   // **** Handle Cycle-by-Cycle Printouts ****
   //-------------------------------------------------------------
   //-------------------------------------------------------------
-
+  val rvConfig = RVConfig(64, "MSU", "AC", functions = Seq("Privileged", "TLB"))
+  val checker = Module(new CheckerWithResult(checkMem = false)(rvConfig))
+  checker.io.instCommit.npc    := DontCare // will change later
   if (true) {
     val difftest = DifftestModule(new DiffCSRState, delay = 0, dontCare = true)
     difftest := csr.io.difftest
@@ -1350,6 +1356,7 @@ if (true) {
     difftest.coreid := 0.U
     // 添加寄存器数组来保存所有寄存器的值
     val int_regfile_state = RegInit(VecInit(Seq.fill(32)(0.U(xLen.W))))
+    val resultRegWire = Wire(Vec(32, UInt(xLen.W)))
     // 获取32个整数逻辑寄存器的值
     for (i <- 0 until 32) {
       // 检查当前提交的指令是否写入该逻辑寄存器
@@ -1361,6 +1368,10 @@ if (true) {
       }
       // x0永远为0，其他寄存器使用保存的值
       difftest.value(i) := Mux(i.U === 0.U, 0.U, int_regfile_state(i))
+      
+      resultRegWire(i) := difftest.value(i)
+      resultRegWire(0) := 0.U
+      ConnectCheckerResult.setRegSource(resultRegWire)
     }
 }
 
@@ -1378,6 +1389,10 @@ if (true) {
       difftest.rfwen  := rob.io.commit.uops(w).rf_wen
       // difftest.wdest  := TBD...
       // difftest.wpdest := TBD...
+      checker.io.instCommit.valid := difftest.valid
+      checker.io.instCommit.inst  := difftest.instr
+      checker.io.instCommit.pc    := difftest.pc
+      ConnectCheckerResult.setChecker(checker)(xLen, rvConfig)
     }
     for (w <- 0 until coreWidth) {
       val priv = RegNext(csr.io.status.prv) // erets change the privilege. Get the old one

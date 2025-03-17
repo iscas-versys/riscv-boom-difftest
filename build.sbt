@@ -18,7 +18,8 @@ lazy val root = (project in file("."))
       "org.chipsalliance" %% s"hardfloat-$chiselVersion" % rocketVersion,
       "org.chipsalliance" %% "macros" % rocketVersion,
       "org.chipsalliance" %% s"rocketchip-$chiselVersion" % rocketVersion,
-	  "ch.epfl.scala" %% "bloop-config" % "2.0.3"
+	  "ch.epfl.scala" %% "bloop-config" % "2.0.3",
+    "cn.ac.ios.tis" %% "riscvspeccore" % "1.3-SNAPSHOT"
     ),
     scalacOptions ++= Seq(
       "-language:reflectiveCalls",
