@@ -78,7 +78,7 @@ case class BoomCoreParams(
   mtvecInit: Option[BigInt] = Some(BigInt(0)),
   mtvecWritable: Boolean = true,
   haveCFlush: Boolean = false,
-  mulDiv: Option[freechips.rocketchip.rocket.MulDivParams] = Some(MulDivParams(divEarlyOut=true)),
+  mulDiv: Option[freechips.rocketchip.rocket.MulDivParams] = Some(MulDivParams(mulUnroll=8, divEarlyOut=true)),
   nBreakpoints: Int = 0, // TODO Fix with better frontend breakpoint unit
   nL2TLBEntries: Int = 512,
   val nPTECacheEntries: Int = 8, // TODO: check

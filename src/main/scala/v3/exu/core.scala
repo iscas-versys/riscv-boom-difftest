@@ -1341,8 +1341,13 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   //-------------------------------------------------------------
 
   if (true) {
-    val difftest = DifftestModule(new DiffCSRState, delay = 0, dontCare = true)
+    val difftest = DifftestModule(new DiffCSRState)
     difftest := csr.io.difftest
+  }
+
+  if (true) {
+    val difftest = DifftestModule(new DiffSnapshotCSRState)
+    difftest := csr.io.snapshot
   }
 
 if (true) {
