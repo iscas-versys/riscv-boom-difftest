@@ -91,31 +91,53 @@ class WithNBMCBooms(n: Int = 1) extends Config(
             core = BoomCoreParams(
               fetchWidth = 4,
               decodeWidth = 1,
-              numRobEntries = 8,
+              numRobEntries = 4,
               issueParams = Seq(
-                IssueParams(issueWidth=1, numEntries=8, iqType=IQT_MEM.litValue, dispatchWidth=1),
-                IssueParams(issueWidth=1, numEntries=8, iqType=IQT_INT.litValue, dispatchWidth=1),
-                IssueParams(issueWidth=1, numEntries=8, iqType=IQT_FP.litValue , dispatchWidth=1)),
+                IssueParams(issueWidth=1, numEntries=4, iqType=IQT_MEM.litValue, dispatchWidth=1),
+                IssueParams(issueWidth=1, numEntries=4, iqType=IQT_INT.litValue, dispatchWidth=1)
+                ),
               numIntPhysRegisters = 52,
               numFpPhysRegisters = 48,
               numLdqEntries = 4,
               numStqEntries = 4,
-              maxBrCount = 8,
+              maxBrCount = 4,
               numFetchBufferEntries = 8,
-              ftq = FtqParameters(nEntries=16),
+              ftq = FtqParameters(nEntries=4),
               nPerfCounters = 2,
-            //   fpu = Some(freechips.rocketchip.tile.FPUParams(sfmaLatency=4, dfmaLatency=4, divSqrt=true))
+              numRXQEntries = 4,
+              numRCQEntries = 4,
+              // BPU
+              localHistoryNSets = 4,
+              numRasEntries = 4,
+              // FPU
               fpu = None,
               usingFPU = false,
               //TLB
               nL2TLBEntries = 0,
-              nPTECacheEntries = 0
+              nPTECacheEntries = 0,
+              useDebug = false,
             ),
             dcache = Some(
-              DCacheParams(rowBits = 64, nSets=64, nWays=4, nMSHRs=2, nTLBWays=8)
+              DCacheParams(
+                rowBits = 64,
+                nSets = 2,
+                nWays = 1,
+                nTLBSets = 1,
+                nTLBWays = 4,
+                nMSHRs = 2,
+                nSDQ = 2,
+                nRPQ = 2,
+                )
             ),
             icache = Some(
-              ICacheParams(rowBits = 64, nSets=64, nWays=4, fetchBytes=2*4)
+              ICacheParams(
+                rowBits = 64,
+                nSets = 2,
+                nWays = 1,
+                fetchBytes = 2*4,
+                nTLBSets = 1,
+                nTLBWays = 4,
+                )
             ),
             tileId = i + idOffset
           ),
