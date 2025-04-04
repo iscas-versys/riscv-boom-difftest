@@ -1367,7 +1367,7 @@ if (true) {
       for (w <- 0 until coreWidth) {
         when (rob.io.commit.arch_valids(w) && rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst === i.U) {
           int_regfile_state(i) := rob.io.commit.debug_wdata(w)
-          printf("[core index:%d] x%d <- 0x%x\n", w.U, i.U, rob.io.commit.debug_wdata(w))
+        //   printf("[core index:%d] x%d <- 0x%x\n", w.U, i.U, rob.io.commit.debug_wdata(w))
         }
       }
       // x0永远为0，其他寄存器使用保存的值
@@ -1394,25 +1394,25 @@ if (true) {
       val priv = RegNext(csr.io.status.prv) // erets change the privilege. Get the old one
 
       // To allow for diffs against spike :/
-      def printf_inst(uop: MicroOp) = {
-        when (uop.is_rvc) {
-          printf("([INST]=0x%x)", uop.debug_inst(15,0))
-        } .otherwise {
-          printf("([INST]=0x%x)", uop.debug_inst)
-        }
-      }
+    //   def printf_inst(uop: MicroOp) = {
+    //     when (uop.is_rvc) {
+    //       printf("([INST]=0x%x)", uop.debug_inst(15,0))
+    //     } .otherwise {
+    //       printf("([INST]=0x%x)", uop.debug_inst)
+    //     }
+    //   }
 
-      when (rob.io.commit.arch_valids(w)) {
-        printf("%d 0x%x ", priv, Sext(rob.io.commit.uops(w).debug_pc(vaddrBits-1,0), xLen))
-        printf_inst(rob.io.commit.uops(w))
-        when (rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U) {
-          printf(" x%d 0x%x\n", rob.io.commit.uops(w).ldst, rob.io.commit.debug_wdata(w))
-        } .elsewhen (rob.io.commit.uops(w).dst_rtype === RT_FLT) {
-          printf(" f%d 0x%x\n", rob.io.commit.uops(w).ldst, rob.io.commit.debug_wdata(w))
-        } .otherwise {
-          printf("\n")
-        }
-      }
+    //   when (rob.io.commit.arch_valids(w)) {
+        // printf("%d 0x%x ", priv, Sext(rob.io.commit.uops(w).debug_pc(vaddrBits-1,0), xLen))
+        // printf_inst(rob.io.commit.uops(w))
+        // when (rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U) {
+        //   printf(" x%d 0x%x\n", rob.io.commit.uops(w).ldst, rob.io.commit.debug_wdata(w))
+        // } .elsewhen (rob.io.commit.uops(w).dst_rtype === RT_FLT) {
+        //   printf(" f%d 0x%x\n", rob.io.commit.uops(w).ldst, rob.io.commit.debug_wdata(w))
+        // } .otherwise {
+        //   printf("\n")
+        // }
+    //   }
     }
   } else if (BRANCH_PRINTF) {
     val debug_ghist = RegInit(0.U(globalHistoryLength.W))
@@ -1429,10 +1429,10 @@ if (true) {
         //   printf("%x", new_ghist(globalHistoryLength-i-1))
         // }
         // printf("\n")
-        printf("%x %x %x %x %x %x\n",
-          rob.io.commit.uops(w).debug_fsrc, rob.io.commit.uops(w).taken,
-          rob.io.commit.uops(w).is_br, rob.io.commit.uops(w).is_jal,
-          rob.io.commit.uops(w).is_jalr, Sext(rob.io.commit.uops(w).debug_pc(vaddrBits-1,0), xLen))
+        // printf("%x %x %x %x %x %x\n",
+        //   rob.io.commit.uops(w).debug_fsrc, rob.io.commit.uops(w).taken,
+        //   rob.io.commit.uops(w).is_br, rob.io.commit.uops(w).is_jal,
+        //   rob.io.commit.uops(w).is_jalr, Sext(rob.io.commit.uops(w).debug_pc(vaddrBits-1,0), xLen))
 
       }
       new_ghist = Mux(rob.io.commit.arch_valids(w) && rob.io.commit.uops(w).is_br,
