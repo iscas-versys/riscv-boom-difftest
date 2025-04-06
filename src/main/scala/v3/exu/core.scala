@@ -270,7 +270,8 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
       ("DTLB miss",   () => io.lsu.perf.tlbMiss),
       ("L2 TLB miss", () => io.ptw.perf.l2miss)))))
   val csr = Module(new freechips.rocketchip.rocket.CSRFile(perfEvents, boomParams.customCSRs.decls))
-  csr.io.inst foreach { c => c := DontCare }
+  csr.io.inst := DontCare
+  csr.io.inst(0) := rob.io.com_xcpt.bits.exception_inst
   csr.io.rocc_interrupt := io.rocc.interrupt
   csr.io.mhtinst_read_pseudo := false.B
 

@@ -90,11 +90,11 @@ class WithNBMCBooms(n: Int = 1) extends Config(
           tileParams = BoomTileParams(
             core = BoomCoreParams(
               fetchWidth = 4,
-              decodeWidth = 1,
-              numRobEntries = 4,
+              decodeWidth = 2,
+              numRobEntries = 8,
               issueParams = Seq(
-                IssueParams(issueWidth=1, numEntries=4, iqType=IQT_MEM.litValue, dispatchWidth=1),
-                IssueParams(issueWidth=1, numEntries=4, iqType=IQT_INT.litValue, dispatchWidth=1)
+                IssueParams(issueWidth=2, numEntries=8, iqType=IQT_MEM.litValue, dispatchWidth=2),
+                IssueParams(issueWidth=2, numEntries=8, iqType=IQT_INT.litValue, dispatchWidth=2)
                 ),
               numIntPhysRegisters = 52,
               numFpPhysRegisters = 48,
@@ -102,11 +102,12 @@ class WithNBMCBooms(n: Int = 1) extends Config(
               numStqEntries = 4,
               maxBrCount = 4,
               numFetchBufferEntries = 8,
-              ftq = FtqParameters(nEntries=4),
+              ftq = FtqParameters(nEntries=8),
               nPerfCounters = 2,
               numRXQEntries = 4,
               numRCQEntries = 4,
               // BPU
+              enableBranchPrediction = false,
               localHistoryNSets = 4,
               numRasEntries = 4,
               // FPU
@@ -127,6 +128,7 @@ class WithNBMCBooms(n: Int = 1) extends Config(
                 nMSHRs = 2,
                 nSDQ = 2,
                 nRPQ = 2,
+                blockBytes = site(CacheBlockBytes),
                 )
             ),
             icache = Some(
@@ -137,6 +139,7 @@ class WithNBMCBooms(n: Int = 1) extends Config(
                 fetchBytes = 2*4,
                 nTLBSets = 1,
                 nTLBWays = 4,
+                blockBytes = site(CacheBlockBytes),
                 )
             ),
             tileId = i + idOffset
