@@ -109,7 +109,7 @@ case class BoomCoreParams(
 {
   override def traceCustom = Some(new BoomTraceBundle)
   val xLen = 64
-  val haveFSDirty = true
+  val haveFSDirty = false
   val pmpGranularity: Int = 4
   val instBits: Int = 16
   val lrscCycles: Int = 80 // worst case is 14 mispredicted branches + slop
