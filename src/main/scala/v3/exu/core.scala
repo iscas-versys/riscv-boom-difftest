@@ -49,6 +49,7 @@ import difftest._
 import rvspeccore.core.RVConfig
 import rvspeccore.checker._
 import rvspeccore.core.spec._
+import rvspeccore.core.spec.instset.csr.{CSR => SpecCSR}
 
 /**
  * Top level core object that connects the Frontend to the rest of the pipeline.
@@ -481,6 +482,32 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
       io.ifu.sfence := RegNext(io.lsu.exe(i).req.bits.sfence)
     }
   }
+  val rvConfig = RVConfig(64, "MSU", "AC", functions = Seq("Privileged", "TLB"))
+  val checker = Module(new CheckerWithWB(checkMem = false)(rvConfig))
+  implicit val XLEN: Int = xLen
+  val CheckerCsr = ConnectCheckerWb.makeCSRSource()(64,rvConfig)
+  // def hasCSR(addr: UInt) :Bool = {
+  //   val speccsr = new SpecCSR()(64, rvConfig)
+  //   MuxLookup(addr, false.B, speccsr.table.map { x => x.info.addr -> true.B })
+  // }
+  val tmpInst = Wire(UInt(32.W))
+  for (w <- 0 until coreWidth){
+    tmpInst := io.ifu.fetchpacket.bits.uops(w).bits.inst
+  }
+  when (io.ifu.commit.valid){
+      // Some assume example
+      // assume(RVI.regImm(tmpInst) || RVI.loadStore(tmpInst))
+      // assume(RVI.loadStore(tmpInst))
+      // assume(RVI.loadStore(tmpInst))
+      assume(
+        RVI.regImm(tmpInst)
+        // (hasCSR(tmpInst(31,20)) && (RVZicsr.reg(tmpInst) || RVZicsr.imm(tmpInst))) 
+        // || 
+        // (  RVI.regImm(tmpInst) || RVI.loadStore(tmpInst)  || RVI.other(tmpInst))
+        // ||
+        // (RVPrivileged.trap_return(tmpInst))
+      )
+    }
 
   //-------------------------------------------------------------
   //-------------------------------------------------------------
@@ -1279,6 +1306,17 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   require (cnt == rob.numWakeupPorts)
   require (f_cnt == rob.numFpuPorts)
 
+  checker.io.wb.data   := DontCare
+  checker.io.wb.dest   := DontCare
+  checker.io.wb.valid  := DontCare
+  checker.io.wb.r1Addr := DontCare
+  checker.io.wb.r2Addr := DontCare
+  checker.io.wb.r1Data := DontCare
+  checker.io.wb.r2Data := DontCare
+  checker.io.wb.csrAddr:= DontCare
+  checker.io.wb.csrWr  := DontCare
+  checker.io.wb.csrNdata := DontCare
+
   // branch resolution
   rob.io.brupdate <> brupdate
 
@@ -1343,8 +1381,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   // **** Handle Cycle-by-Cycle Printouts ****
   //-------------------------------------------------------------
   //-------------------------------------------------------------
-  val rvConfig = RVConfig(64, "MSU", "AC", functions = Seq("Privileged", "TLB"))
-  val checker = Module(new CheckerWithResult(checkMem = false)(rvConfig))
+  
   checker.io.instCommit.npc    := DontCare // will change later
   if (true) {
     val difftest = DifftestModule(new DiffCSRState, delay = 0, dontCare = true)
@@ -1371,7 +1408,7 @@ if (true) {
       
       resultRegWire(i) := difftest.value(i)
       resultRegWire(0) := 0.U
-      ConnectCheckerResult.setRegSource(resultRegWire)
+      //ConnectCheckerWb.setRegSource(resultRegWire)
     }
 }
 
@@ -1392,7 +1429,8 @@ if (true) {
       checker.io.instCommit.valid := difftest.valid
       checker.io.instCommit.inst  := difftest.instr
       checker.io.instCommit.pc    := difftest.pc
-      ConnectCheckerResult.setChecker(checker)(xLen, rvConfig)
+      
+      ConnectCheckerWb.setChecker(checker)(xLen, rvConfig)
     }
     for (w <- 0 until coreWidth) {
       val priv = RegNext(csr.io.status.prv) // erets change the privilege. Get the old one

@@ -21,6 +21,8 @@ object boom extends ScalaModule { m =>
   )
   val chiselVersion = "6.5.0"
   val rocketVersion = "1.6-snapshot"
+  override def moduleDeps = super.moduleDeps ++ Seq(rocketModule) ++ Seq(difftest) ++ Seq(riscvspeccore)
+
   override def ivyDeps = Agg(
     ivy"org.chipsalliance::chisel:$chiselVersion",
     ivy"org.chipsalliance::cde:$rocketVersion",
@@ -34,3 +36,23 @@ object boom extends ScalaModule { m =>
     ivy"org.chipsalliance:::chisel-plugin:$chiselVersion",
   )
 }
+trait riscvSpecCore extends ScalaModule with HasThisChisel {
+  def scalaVersion = defaultScalaVersion
+  def millSourcePath = pwd / os.up/"riscv-spec-core"
+  def chiselModule: Option[ScalaModule] = None
+  def chiselPluginJar: T[Option[PathRef]] = None
+  def chiselIvy: Option[Dep] = v.chiselIvy
+  def chiselPluginIvy: Option[Dep] = v.chiselPluginIvy
+}
+object riscvspeccore extends riscvSpecCore
+
+trait Difftest extends ScalaModule with HasThisChisel{
+  def scalaVersion = defaultScalaVersion
+  def millSourcePath = pwd /os.up/ "difftest"
+  def chiselModule: Option[ScalaModule] = None
+  def chiselPluginJar: T[Option[PathRef]] = None
+  def chiselIvy: Option[Dep] = v.chiselIvy
+  def chiselPluginIvy: Option[Dep] = v.chiselPluginIvy
+}
+
+object difftest extends Difftest
