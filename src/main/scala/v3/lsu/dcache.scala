@@ -19,7 +19,7 @@ import freechips.rocketchip.rocket._
 import boom.v3.common._
 import boom.v3.exu.BrUpdateInfo
 import boom.v3.util.{IsKilledByBranch, GetNewBrMask, BranchKillableQueue, IsOlder, UpdateBrMask, AgePriorityEncoder, WrapInc, Transpose}
-
+import difftest.{DiffStoreEvent, DiffLrScEvent, DifftestModule}
 
 class BoomWritebackUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1HellaCacheModule()(p) {
   val io = IO(new Bundle {
@@ -664,6 +664,14 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   val s2_sc = s2_req(0).uop.mem_cmd === M_XSC && (!RegNext(s1_nack(0)) || s2_type === t_replay)
   val s2_lrsc_addr_match = widthMap(w => lrsc_valid && lrsc_addr === (s2_req(w).addr >> blockOffBits))
   val s2_sc_fail = s2_sc && !s2_lrsc_addr_match(0)
+  
+  if (true) {
+    val difftest = DifftestModule(new DiffLrScEvent, delay = 1)
+    difftest.coreid  := 0.U
+    difftest.valid   := s2_sc && s2_valid(0)
+    difftest.success := !s2_sc_fail
+  }
+
   when (lrsc_count > 0.U) { lrsc_count := lrsc_count - 1.U }
   when (s2_valid(0) && ((s2_type === t_lsu && s2_hit(0) && !s2_nack(0)) ||
                      (s2_type === t_replay && s2_req(0).uop.mem_cmd =/= M_FLUSH_ALL))) {
@@ -893,6 +901,26 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
                        Mux(s5_bypass(w), s5_req.data,
                                          s2_data_word_prebypass(w))))
   }
+
+  // [TODO]: next step for more fine-grained difftest store event 
+  // if (true) {
+  //   val difftest = DifftestModule(new DiffStoreEvent, delay = 10, dontCare = true)
+  //   difftest.coreid := 0.U
+  //   difftest.index  := 0.U
+  //   difftest.valid  := s3_valid
+  //   difftest.addr   := s3_req.addr
+
+  //   val size = s3_req.uop.mem_size
+  //   val mask = (1.U << (1.U << size)) - 1.U
+  //   val masked_data = FillInterleaved(8, mask) & s3_req.data 
+
+  //   difftest.data := masked_data
+  //   difftest.mask := mask
+  //   when(difftest.valid){
+  //     printf("DifftestStoreEvent: coreid=%x, index=%x, valid=%x, addr=%x, data=%x, mask=%x\n", difftest.coreid, difftest.index, difftest.valid, difftest.addr, difftest.data, difftest.mask)
+  //   }
+  // }
+
   val amoalu   = Module(new AMOALU(xLen))
   amoalu.io.mask := new StoreGen(s2_req(0).uop.mem_size, s2_req(0).addr, 0.U, xLen/8).mask
   amoalu.io.cmd  := s2_req(0).uop.mem_cmd

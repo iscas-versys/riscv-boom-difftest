@@ -1378,6 +1378,16 @@ if (true) {
     }
 }
 
+  // [TODO]: next step we can implement this
+  // if (true) {
+  //   val difftest = DifftestModule(new DiffIntWriteback)
+  //   difftest.coreid := 0.U
+  //   // difftest.valid := rf_wen
+  //   // difftest.address := rf_waddr
+  //   // difftest.data := rf_wdata
+  //   // TBD...
+  // }
+
   if (true) {
     var new_commit_cnt = 0.U
     for (w <- 0 until coreWidth){
@@ -1392,6 +1402,9 @@ if (true) {
       difftest.rfwen  := rob.io.commit.uops(w).rf_wen
       // difftest.wdest  := TBD...
       // difftest.wpdest := TBD...
+      // when(difftest.valid){
+      //   printf("[Difftest]Index: %x, PC: %x, INST: %x\n", w.U, rob.io.commit.uops(w).debug_pc, rob.io.commit.uops(w).debug_inst)
+      // }
     }
     for (w <- 0 until coreWidth) {
       val priv = RegNext(csr.io.status.prv) // erets change the privilege. Get the old one
