@@ -74,7 +74,7 @@ case class BoomCoreParams(
   fpu: Option[FPUParams] = Some(FPUParams(sfmaLatency=4, dfmaLatency=4)),
   usingFPU: Boolean = true,
   haveBasicCounters: Boolean = true,
-  misaWritable: Boolean = false,
+  misaWritable: Boolean = true,
   mtvecInit: Option[BigInt] = Some(BigInt(0)),
   mtvecWritable: Boolean = true,
   haveCFlush: Boolean = false,
