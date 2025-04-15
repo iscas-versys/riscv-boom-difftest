@@ -107,7 +107,7 @@ class WithNBMCBooms(n: Int = 1) extends Config(
               numRXQEntries = 4,
               numRCQEntries = 4,
               // BPU
-            //   enableBranchPrediction = false,
+              enableBranchPrediction = false,
               localHistoryNSets = 4,
               numRasEntries = 4,
               // FPU
