@@ -86,18 +86,19 @@ class WithNBMCBooms(n: Int = 1) extends Config(
       val prev = up(TilesLocated(InSubsystem), site)
       val idOffset = up(NumTiles)
       (0 until n).map { i =>
+        val coreWidth = 1
+        val memWidth = 1
         BoomTileAttachParams(
           tileParams = BoomTileParams(
             core = BoomCoreParams(
               fetchWidth = 4,
-              decodeWidth = 2,
-              numRobEntries = 8,
+              decodeWidth = coreWidth,
+              numRobEntries = 4,
               issueParams = Seq(
-                IssueParams(issueWidth=2, numEntries=8, iqType=IQT_MEM.litValue, dispatchWidth=2),
-                IssueParams(issueWidth=2, numEntries=8, iqType=IQT_INT.litValue, dispatchWidth=2)
+                IssueParams(issueWidth=1, numEntries=4, iqType=IQT_MEM.litValue, dispatchWidth=1),
+                IssueParams(issueWidth=1, numEntries=8, iqType=IQT_INT.litValue, dispatchWidth=1)
                 ),
-              numIntPhysRegisters = 52,
-              numFpPhysRegisters = 48,
+              numIntPhysRegisters = 33,
               numLdqEntries = 4,
               numStqEntries = 4,
               maxBrCount = 4,
@@ -108,8 +109,7 @@ class WithNBMCBooms(n: Int = 1) extends Config(
               numRCQEntries = 4,
               // BPU
               enableBranchPrediction = false,
-              localHistoryNSets = 4,
-              numRasEntries = 4,
+              numRasEntries = 0,
               // FPU
               fpu = None,
               usingFPU = false,
