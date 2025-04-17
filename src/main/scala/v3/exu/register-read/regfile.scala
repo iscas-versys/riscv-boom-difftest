@@ -114,8 +114,8 @@ class RegisterFileSynthesizable(
 {
   // --------------------------------------------------------------
 
-  val regfile = Mem(numRegisters, UInt(registerWidth.W))
-
+//   val regfile = Mem(numRegisters, UInt(registerWidth.W))
+  val regfile = RegInit(0.U.asTypeOf(Vec(numRegisters, UInt(registerWidth.W))))
   // --------------------------------------------------------------
   // Read ports.
 
