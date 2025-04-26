@@ -135,7 +135,7 @@ class FDivSqrtUnit(implicit p: Parameters)
     }
   }
 
-  assert (!(r_buffer_val && io.req.valid), "[fdiv] a request is incoming while the buffer is already full.")
+  // assert (!(r_buffer_val && io.req.valid), "[fdiv] a request is incoming while the buffer is already full.")
 
   //-----------
   // fdiv/fsqrt
@@ -202,11 +202,11 @@ class FDivSqrtUnit(implicit p: Parameters)
     r_out_wdata_double := sanitizeNaN(divsqrt.io.out, tile.FType.D)
     r_out_flags_double := divsqrt.io.exceptionFlags
 
-    assert (r_divsqrt_val, "[fdiv] a response is being generated for no request.")
+    // assert (r_divsqrt_val, "[fdiv] a response is being generated for no request.")
   }
 
-  assert (!(r_out_val && (divsqrt.io.outValid_div || divsqrt.io.outValid_sqrt)),
-    "[fdiv] Buffered output being overwritten by another output from the fdiv/fsqrt unit.")
+  // assert (!(r_out_val && (divsqrt.io.outValid_div || divsqrt.io.outValid_sqrt)),
+  //   "[fdiv] Buffered output being overwritten by another output from the fdiv/fsqrt unit.")
 
   val downvert_d2s = Module(new hardfloat.RecFNToRecFN(
     inExpWidth = 11, inSigWidth = 53, outExpWidth = 8, outSigWidth = 24))

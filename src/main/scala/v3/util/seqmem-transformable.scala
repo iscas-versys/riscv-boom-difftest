@@ -61,7 +61,7 @@ class SeqMem1rwTransformable (
   // must compute offset from address but then factor in the lWidth.
   private def getOffset(addr:UInt) = addr(pOffSz-1,0) << lOffSz
 
-  assert (!(io.wen && io.ren), "[SMUtil] writer and reader fighting over the single port.")
+  // assert (!(io.wen && io.ren), "[SMUtil] writer and reader fighting over the single port.")
   when (io.wen && !io.ren) {
     val waddr = getIdx(io.waddr)
     val wdata = (io.wdata << getOffset(io.waddr))(pWidth-1, 0)

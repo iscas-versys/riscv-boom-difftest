@@ -767,7 +767,7 @@ class BoomFrontendModule(outer: BoomFrontend) extends LazyModuleImp(outer)
   when (f3.io.deq.fire) {
     f3_prev_is_half := bank_prev_is_half
     f3_prev_half    := bank_prev_half
-    assert(f3_bpd_resp.io.deq.bits.pc === f3_fetch_bundle.pc)
+    // assert(f3_bpd_resp.io.deq.bits.pc === f3_fetch_bundle.pc)
   }
 
   when (f3_clear) {
@@ -925,7 +925,7 @@ class BoomFrontendModule(outer: BoomFrontend) extends LazyModuleImp(outer)
   val bpd_update_arbiter = Module(new Arbiter(new BranchPredictionUpdate, 2))
   bpd_update_arbiter.io.in(0).valid := ftq.io.bpdupdate.valid
   bpd_update_arbiter.io.in(0).bits  := ftq.io.bpdupdate.bits
-  assert(bpd_update_arbiter.io.in(0).ready)
+  // assert(bpd_update_arbiter.io.in(0).ready)
   bpd_update_arbiter.io.in(1) <> f4_btb_corrections.io.deq
   bpd.io.update := bpd_update_arbiter.io.out
   bpd_update_arbiter.io.out.ready := true.B

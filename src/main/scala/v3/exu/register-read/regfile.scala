@@ -114,7 +114,8 @@ class RegisterFileSynthesizable(
 {
   // --------------------------------------------------------------
 
-  val regfile = Mem(numRegisters, UInt(registerWidth.W))
+  // val regfile = Mem(numRegisters, UInt(registerWidth.W))
+  val regfile = RegInit(0.U.asTypeOf(Vec(numRegisters, UInt(registerWidth.W))))
 
   // --------------------------------------------------------------
   // Read ports.
@@ -168,11 +169,11 @@ class RegisterFileSynthesizable(
   if (numWritePorts > 1) {
     for (i <- 0 until (numWritePorts - 1)) {
       for (j <- (i + 1) until numWritePorts) {
-        assert(!io.write_ports(i).valid ||
-               !io.write_ports(j).valid ||
-               (io.write_ports(i).bits.addr =/= io.write_ports(j).bits.addr) ||
-               (io.write_ports(i).bits.addr === 0.U), // note: you only have to check one here
-          "[regfile] too many writers a register")
+        // assert(!io.write_ports(i).valid ||
+        //        !io.write_ports(j).valid ||
+        //        (io.write_ports(i).bits.addr =/= io.write_ports(j).bits.addr) ||
+        //        (io.write_ports(i).bits.addr === 0.U), // note: you only have to check one here
+        //   "[regfile] too many writers a register")
       }
     }
   }

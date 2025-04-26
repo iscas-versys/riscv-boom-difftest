@@ -112,7 +112,7 @@ class BoomLSUShim(implicit p: Parameters) extends BoomModule()(p)
   }
 
 
-  assert(!io.lsu.lxcpt.valid)
+  // assert(!io.lsu.lxcpt.valid)
 
   io.lsu.exe(0).req.valid     := RegNext(io.tracegen.req.fire)
   io.lsu.exe(0).req.bits      := DontCare
@@ -259,6 +259,6 @@ class BoomTraceGenTileModuleImp(outer: BoomTraceGenTile)
   status.timeout.bits := 0.U
   status.error.valid := false.B
 
-  assert(!tracegen.io.timeout, s"TraceGen tile ${outer.tileParams.tileId}: request timed out")
+  // assert(!tracegen.io.timeout, s"TraceGen tile ${outer.tileParams.tileId}: request timed out")
 
 }

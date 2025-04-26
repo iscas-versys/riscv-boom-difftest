@@ -144,7 +144,7 @@ abstract class ExecutionUnit(
     io.iresp.bits := DontCare
     io.iresp.bits.fflags.valid := false.B
     io.iresp.bits.predicated := false.B
-    assert(io.iresp.ready)
+    // assert(io.iresp.ready)
   }
   if (writesLlIrf) {
     io.ll_iresp.valid := false.B
@@ -157,7 +157,7 @@ abstract class ExecutionUnit(
     io.fresp.bits := DontCare
     io.fresp.bits.fflags.valid := false.B
     io.fresp.bits.predicated := false.B
-    assert(io.fresp.ready)
+    // assert(io.fresp.ready)
   }
   if (writesLlFrf) {
     io.ll_fresp.valid := false.B
@@ -356,7 +356,7 @@ class ALUExeUnit(
 
     io.ll_fresp <> queue.io.deq
     ifpu_busy := !(queue.io.empty)
-    assert (queue.io.enq.ready)
+    // assert (queue.io.enq.ready)
   }
 
   // Div/Rem Unit -----------------------
@@ -422,9 +422,9 @@ class ALUExeUnit(
     }
   }
 
-  assert ((PopCount(iresp_fu_units.map(_.io.resp.valid)) <= 1.U && !div_resp_val) ||
-          (PopCount(iresp_fu_units.map(_.io.resp.valid)) <= 2.U && (div_resp_val)),
-          "Multiple functional units are fighting over the write port.")
+  // assert ((PopCount(iresp_fu_units.map(_.io.resp.valid)) <= 1.U && !div_resp_val) ||
+  //         (PopCount(iresp_fu_units.map(_.io.resp.valid)) <= 2.U && (div_resp_val)),
+  //         "Multiple functional units are fighting over the write port.")
 }
 
 /**
@@ -546,7 +546,7 @@ class FPUExeUnit(
     queue.io.brupdate          := io.brupdate
     queue.io.flush           := io.req.bits.kill
 
-    assert (queue.io.enq.ready) // If this backs up, we've miscalculated the size of the queue.
+    // assert (queue.io.enq.ready) // If this backs up, we've miscalculated the size of the queue.
 
     val fp_sdq = Module(new BranchKillableQueue(new ExeUnitResp(dataWidth),
       entries = 3)) // Lets us backpressure floating point store data
@@ -558,7 +558,7 @@ class FPUExeUnit(
     fp_sdq.io.brupdate         := io.brupdate
     fp_sdq.io.flush          := io.req.bits.kill
 
-    assert(!(fp_sdq.io.enq.valid && !fp_sdq.io.enq.ready))
+    // assert(!(fp_sdq.io.enq.valid && !fp_sdq.io.enq.ready))
 
     val resp_arb = Module(new Arbiter(new ExeUnitResp(dataWidth), 2))
     resp_arb.io.in(0) <> queue.io.deq

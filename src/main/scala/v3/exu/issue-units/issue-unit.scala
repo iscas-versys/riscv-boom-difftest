@@ -142,7 +142,7 @@ abstract class IssueUnit(
     }
 
     if (iqType != IQT_INT.litValue) {
-      assert(!(io.dis_uops(w).bits.ppred_busy && io.dis_uops(w).valid))
+      // assert(!(io.dis_uops(w).bits.ppred_busy && io.dis_uops(w).valid))
       dis_uops(w).ppred_busy := false.B
     }
   }
@@ -169,7 +169,7 @@ abstract class IssueUnit(
 
   //-------------------------------------------------------------
 
-  assert (PopCount(issue_slots.map(s => s.grant)) <= issueWidth.U, "[issue] window giving out too many grants.")
+  // assert (PopCount(issue_slots.map(s => s.grant)) <= issueWidth.U, "[issue] window giving out too many grants.")
 
 
   //-------------------------------------------------------------

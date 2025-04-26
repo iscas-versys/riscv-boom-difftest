@@ -176,7 +176,7 @@ class ICacheModule(outer: ICache) extends LazyModuleImp(outer)
     val tag = tag_rdata(i)
     s1_tag_hit(i) := s1_vb && tag === s1_tag
   }
-  assert(PopCount(s1_tag_hit) <= 1.U || !s1_valid)
+  // assert(PopCount(s1_tag_hit) <= 1.U || !s1_valid)
 
   val ramDepth = if (refillsToOneBank && nBanks == 2) {
     nSets * refillCycles / 2

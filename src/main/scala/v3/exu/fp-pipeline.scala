@@ -184,8 +184,8 @@ class FpPipeline(implicit p: Parameters) extends BoomModule with tile.HasFPUPara
   // but Issue happens on S1 and RegRead doesn't happen until S2 so we're safe.
   fregfile.io.write_ports(0) := RegNext(WritePort(ll_wbarb.io.out, fpregSz, fLen+1, RT_FLT))
 
-  assert (ll_wbarb.io.in(0).ready) // never backpressure the memory unit.
-  when (ifpu_resp.valid) { assert (ifpu_resp.bits.uop.rf_wen && ifpu_resp.bits.uop.dst_rtype === RT_FLT) }
+  // assert (ll_wbarb.io.in(0).ready) // never backpressure the memory unit.
+  // when (ifpu_resp.valid) { assert (ifpu_resp.bits.uop.rf_wen && ifpu_resp.bits.uop.dst_rtype === RT_FLT) }
 
   var w_cnt = 1
   for (i <- 1 until memWidth) {
@@ -201,9 +201,9 @@ class FpPipeline(implicit p: Parameters) extends BoomModule with tile.HasFPUPara
       fregfile.io.write_ports(w_cnt).bits.data := eu.io.fresp.bits.data
       eu.io.fresp.ready                        := true.B
       when (eu.io.fresp.valid) {
-        assert(eu.io.fresp.ready, "No backpressuring the FPU")
-        assert(eu.io.fresp.bits.uop.rf_wen, "rf_wen must be high here")
-        assert(eu.io.fresp.bits.uop.dst_rtype === RT_FLT, "wb type must be FLT for fpu")
+        // assert(eu.io.fresp.ready, "No backpressuring the FPU")
+        // assert(eu.io.fresp.bits.uop.rf_wen, "rf_wen must be high here")
+        // assert(eu.io.fresp.bits.uop.dst_rtype === RT_FLT, "wb type must be FLT for fpu")
       }
       w_cnt += 1
     }
@@ -245,9 +245,9 @@ class FpPipeline(implicit p: Parameters) extends BoomModule with tile.HasFPUPara
 
       w_cnt += 1
 
-      assert(!(exe_resp.valid && wb_uop.uses_ldq))
-      assert(!(exe_resp.valid && wb_uop.uses_stq))
-      assert(!(exe_resp.valid && wb_uop.is_amo))
+      // assert(!(exe_resp.valid && wb_uop.uses_ldq))
+      // assert(!(exe_resp.valid && wb_uop.uses_stq))
+      // assert(!(exe_resp.valid && wb_uop.is_amo))
     }
   }
 

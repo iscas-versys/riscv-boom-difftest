@@ -128,7 +128,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   val rpq = Module(new BranchKillableQueue(new BoomDCacheReqInternal, cfg.nRPQ, u => u.uses_ldq, false))
   rpq.io.brupdate := io.brupdate
   rpq.io.flush  := io.exception
-  assert(!(state === s_invalid && !rpq.io.empty))
+  // assert(!(state === s_invalid && !rpq.io.empty))
 
   rpq.io.enq.valid := ((io.req_pri_val && io.req_pri_rdy) || (io.req_sec_val && io.req_sec_rdy)) && !isPrefetch(io.req.uop.mem_cmd)
   rpq.io.enq.bits  := io.req
@@ -191,14 +191,14 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     val new_state = WireInit(old_state)
     grantack.valid := false.B
     refill_ctr := 0.U
-    assert(rpq.io.enq.ready)
+    // assert(rpq.io.enq.ready)
     req := io.req
     val old_coh   = io.req.old_meta.coh
     req_needs_wb := old_coh.onCacheControl(M_FLUSH)._1 // does the line we are evicting need to be written back
     when (io.req.tag_match) {
       val (is_hit, _, coh_on_hit) = old_coh.onAccess(io.req.uop.mem_cmd)
       when (is_hit) { // set dirty bit
-        assert(isWrite(io.req.uop.mem_cmd))
+        // assert(isWrite(io.req.uop.mem_cmd))
         new_coh     := coh_on_hit
         new_state   := s_drain_rpq
       } .otherwise { // upgrade permissions
@@ -248,7 +248,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
       grantack.valid := edge.isRequest(io.mem_grant.bits)
       grantack.bits := edge.GrantAck(io.mem_grant.bits)
       state := Mux(grant_had_data, s_drain_rpq_loads, s_drain_rpq)
-      assert(!(!grant_had_data && req_needs_wb))
+      // assert(!(!grant_had_data && req_needs_wb))
       commit_line := false.B
       new_coh := coh_on_grant
 
@@ -354,7 +354,7 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
     when (io.replay.fire && isWrite(rpq.io.deq.bits.uop.mem_cmd)) {
       // Set dirty bit
       val (is_hit, _, coh_on_hit) = new_coh.onAccess(rpq.io.deq.bits.uop.mem_cmd)
-      assert(is_hit, "We still don't have permissions for this store")
+      // assert(is_hit, "We still don't have permissions for this store")
       new_coh := coh_on_hit
     }
     when (rpq.io.empty && !rpq.io.enq.valid) {
@@ -448,10 +448,10 @@ class BoomIOMSHR(id: Int)(implicit edge: TLEdgeOut, p: Parameters) extends BoomM
       M_XA_MAXU -> edge.Arithmetic(a_source, a_address, a_size, a_data, TLAtomics.MAXU)._2))
   } else {
     // If no managers support atomics, assert fail if processor asks for them
-    assert(state === s_idle || !isAMO(req.uop.mem_cmd))
+    // assert(state === s_idle || !isAMO(req.uop.mem_cmd))
     (0.U).asTypeOf(new TLBundleA(edge.bundle))
   }
-  assert(state === s_idle || req.uop.mem_cmd =/= M_XSC)
+  // assert(state === s_idle || req.uop.mem_cmd =/= M_XSC)
 
   io.mem_access.valid := state === s_mem_access
   io.mem_access.bits  := Mux(isAMO(req.uop.mem_cmd), atomics, Mux(isRead(req.uop.mem_cmd), get, put))

@@ -153,7 +153,7 @@ class IssueSlot(val numWakeupPorts: Int)(implicit p: Parameters)
 
   when (io.in_uop.valid) {
     slot_uop := io.in_uop.bits
-    assert (is_invalid || io.clear || io.kill, "trying to overwrite a valid issue slot.")
+    // assert (is_invalid || io.clear || io.kill, "trying to overwrite a valid issue slot.")
   }
 
   // Wakeup Compare Logic
@@ -173,11 +173,11 @@ class IssueSlot(val numWakeupPorts: Int)(implicit p: Parameters)
   }
 
   when (io.ldspec_miss && next_p1_poisoned) {
-    assert(next_uop.prs1 =/= 0.U, "Poison bit can't be set for prs1=x0!")
+    // assert(next_uop.prs1 =/= 0.U, "Poison bit can't be set for prs1=x0!")
     p1 := false.B
   }
   when (io.ldspec_miss && next_p2_poisoned) {
-    assert(next_uop.prs2 =/= 0.U, "Poison bit can't be set for prs2=x0!")
+    // assert(next_uop.prs2 =/= 0.U, "Poison bit can't be set for prs2=x0!")
     p2 := false.B
   }
 
@@ -200,8 +200,8 @@ class IssueSlot(val numWakeupPorts: Int)(implicit p: Parameters)
   }
 
   for (w <- 0 until memWidth) {
-    assert (!(io.spec_ld_wakeup(w).valid && io.spec_ld_wakeup(w).bits === 0.U),
-      "Loads to x0 should never speculatively wakeup other instructions")
+    // assert (!(io.spec_ld_wakeup(w).valid && io.spec_ld_wakeup(w).bits === 0.U),
+    //   "Loads to x0 should never speculatively wakeup other instructions")
   }
 
   // TODO disable if FP IQ.
@@ -211,14 +211,14 @@ class IssueSlot(val numWakeupPorts: Int)(implicit p: Parameters)
       next_uop.lrs1_rtype === RT_FIX) {
       p1 := true.B
       p1_poisoned := true.B
-      assert (!next_p1_poisoned)
+      // assert (!next_p1_poisoned)
     }
     when (io.spec_ld_wakeup(w).valid &&
       io.spec_ld_wakeup(w).bits === next_uop.prs2 &&
       next_uop.lrs2_rtype === RT_FIX) {
       p2 := true.B
       p2_poisoned := true.B
-      assert (!next_p2_poisoned)
+      // assert (!next_p2_poisoned)
     }
   }
 

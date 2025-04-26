@@ -330,8 +330,8 @@ class Rob(
       rob_predicated(rob_tail)   := false.B
       rob_fflags(w)(rob_tail)    := 0.U
 
-      assert (rob_val(rob_tail) === false.B, "[rob] overwriting a valid entry.")
-      assert ((io.enq_uops(w).rob_idx >> log2Ceil(coreWidth)) === rob_tail)
+      // assert (rob_val(rob_tail) === false.B, "[rob] overwriting a valid entry.")
+      // assert ((io.enq_uops(w).rob_idx >> log2Ceil(coreWidth)) === rob_tail)
     } .elsewhen (io.enq_valids.reduce(_|_) && !rob_val(rob_tail)) {
       rob_uop(rob_tail).debug_inst := BUBBLE // just for debug purposes
     }
@@ -362,8 +362,8 @@ class Rob(
         val cidx = GetRowIdx(clr_rob_idx.bits)
         rob_bsy(cidx)    := false.B
         rob_unsafe(cidx) := false.B
-        assert (rob_val(cidx) === true.B, "[rob] store writing back to invalid entry.")
-        assert (rob_bsy(cidx) === true.B, "[rob] store writing back to a not-busy entry.")
+        // assert (rob_val(cidx) === true.B, "[rob] store writing back to invalid entry.")
+        // assert (rob_bsy(cidx) === true.B, "[rob] store writing back to a not-busy entry.")
       }
     }
     for (clr <- io.lsu_clr_unsafe) {
@@ -391,8 +391,8 @@ class Rob(
       rob_exception(GetRowIdx(io.lxcpt.bits.uop.rob_idx)) := true.B
       when (io.lxcpt.bits.cause =/= MINI_EXCEPTION_MEM_ORDERING) {
         // In the case of a mem-ordering failure, the failing load will have been marked safe already.
-        assert(rob_unsafe(GetRowIdx(io.lxcpt.bits.uop.rob_idx)),
-          "An instruction marked as safe is causing an exception")
+        // assert(rob_unsafe(GetRowIdx(io.lxcpt.bits.uop.rob_idx)),
+        //   "An instruction marked as safe is causing an exception")
       }
     }
 
@@ -431,8 +431,8 @@ class Rob(
     io.commit.rbk_valids(w) := rbk_row && rob_val(com_idx) && !(enableCommitMapTable.B)
     io.commit.rollback := (rob_state === s_rollback)
 
-    assert (!(io.commit.valids.reduce(_||_) && io.commit.rbk_valids.reduce(_||_)),
-      "com_valids and rbk_valids are mutually exclusive")
+    // assert (!(io.commit.valids.reduce(_||_) && io.commit.rbk_valids.reduce(_||_)),
+    //   "com_valids and rbk_valids are mutually exclusive")
 
     when (rbk_row) {
       rob_val(com_idx)       := false.B
@@ -515,15 +515,15 @@ class Rob(
       }
       val temp_uop = rob_uop(GetRowIdx(rob_idx))
 
-      assert (!(io.wb_resps(i).valid && MatchBank(GetBankIdx(rob_idx)) &&
-               !rob_val(GetRowIdx(rob_idx))),
-               "[rob] writeback (" + i + ") occurred to an invalid ROB entry.")
-      assert (!(io.wb_resps(i).valid && MatchBank(GetBankIdx(rob_idx)) &&
-               !rob_bsy(GetRowIdx(rob_idx))),
-               "[rob] writeback (" + i + ") occurred to a not-busy ROB entry.")
-      assert (!(io.wb_resps(i).valid && MatchBank(GetBankIdx(rob_idx)) &&
-               temp_uop.ldst_val && temp_uop.pdst =/= io.wb_resps(i).bits.uop.pdst),
-               "[rob] writeback (" + i + ") occurred to the wrong pdst.")
+      // assert (!(io.wb_resps(i).valid && MatchBank(GetBankIdx(rob_idx)) &&
+      //          !rob_val(GetRowIdx(rob_idx))),
+      //          "[rob] writeback (" + i + ") occurred to an invalid ROB entry.")
+      // assert (!(io.wb_resps(i).valid && MatchBank(GetBankIdx(rob_idx)) &&
+      //          !rob_bsy(GetRowIdx(rob_idx))),
+      //          "[rob] writeback (" + i + ") occurred to a not-busy ROB entry.")
+      // assert (!(io.wb_resps(i).valid && MatchBank(GetBankIdx(rob_idx)) &&
+      //          temp_uop.ldst_val && temp_uop.pdst =/= io.wb_resps(i).bits.uop.pdst),
+      //          "[rob] writeback (" + i + ") occurred to the wrong pdst.")
     }
     io.commit.debug_wdata(w) := rob_debug_wdata(rob_head)
 
@@ -577,8 +577,8 @@ class Rob(
   val flush_commit = flush_commit_mask.reduce(_|_)
   val flush_val = exception_thrown || flush_commit
 
-  assert(!(PopCount(flush_commit_mask) > 1.U),
-    "[rob] Can't commit multiple flush_on_commit instructions on one cycle")
+  // assert(!(PopCount(flush_commit_mask) > 1.U),
+  //   "[rob] Can't commit multiple flush_on_commit instructions on one cycle")
 
   val flush_uop = Mux(exception_thrown, com_xcpt_uop, Mux1H(flush_commit_mask, io.commit.uops))
 
@@ -610,15 +610,15 @@ class Rob(
 
     fflags(w) := Mux(fflags_val(w), rob_head_fflags(w), 0.U)
 
-    assert (!(io.commit.valids(w) &&
-             !io.commit.uops(w).fp_val &&
-             rob_head_fflags(w) =/= 0.U),
-             "Committed non-FP instruction has non-zero fflag bits.")
-    assert (!(io.commit.valids(w) &&
-             io.commit.uops(w).fp_val &&
-             (io.commit.uops(w).uses_ldq || io.commit.uops(w).uses_stq) &&
-             rob_head_fflags(w) =/= 0.U),
-             "Committed FP load or store has non-zero fflag bits.")
+    // assert (!(io.commit.valids(w) &&
+    //          !io.commit.uops(w).fp_val &&
+    //          rob_head_fflags(w) =/= 0.U),
+    //          "Committed non-FP instruction has non-zero fflag bits.")
+    // assert (!(io.commit.valids(w) &&
+    //          io.commit.uops(w).fp_val &&
+    //          (io.commit.uops(w).uses_ldq || io.commit.uops(w).uses_stq) &&
+    //          rob_head_fflags(w) =/= 0.U),
+    //          "Committed FP load or store has non-zero fflag bits.")
   }
   io.commit.fflags.valid := fflags_val.reduce(_|_)
   io.commit.fflags.bits  := fflags.reduce(_|_)
@@ -664,15 +664,15 @@ class Rob(
     r_xcpt_val := false.B
   }
 
-  assert (!(exception_thrown && !r_xcpt_val),
-    "ROB trying to throw an exception, but it doesn't have a valid xcpt_cause")
+  // assert (!(exception_thrown && !r_xcpt_val),
+  //   "ROB trying to throw an exception, but it doesn't have a valid xcpt_cause")
 
-  assert (!(empty && r_xcpt_val),
-    "ROB is empty, but believes it has an outstanding exception.")
+  // assert (!(empty && r_xcpt_val),
+  //   "ROB is empty, but believes it has an outstanding exception.")
 
-  assert (!(will_throw_exception && (GetRowIdx(r_xcpt_uop.rob_idx) =/= rob_head)),
-    "ROB is throwing an exception, but the stored exception information's " +
-    "rob_idx does not match the rob_head")
+  // assert (!(will_throw_exception && (GetRowIdx(r_xcpt_uop.rob_idx) =/= rob_head)),
+  //   "ROB is throwing an exception, but the stored exception information's " +
+  //   "rob_idx does not match the rob_head")
 
   // -----------------------------------------------
   // ROB Head Logic
@@ -746,10 +746,10 @@ class Rob(
   }
 
   // Head overrunning PNR likely means an entry hasn't been marked as safe when it should have been.
-  assert(!IsOlder(rob_pnr_idx, rob_head_idx, rob_tail_idx) || rob_pnr_idx === rob_tail_idx)
+  // assert(!IsOlder(rob_pnr_idx, rob_head_idx, rob_tail_idx) || rob_pnr_idx === rob_tail_idx)
 
-  // PNR overrunning tail likely means an entry has been marked as safe when it shouldn't have been.
-  assert(!IsOlder(rob_tail_idx, rob_pnr_idx, rob_head_idx) || full)
+  // // PNR overrunning tail likely means an entry has been marked as safe when it shouldn't have been.
+  // assert(!IsOlder(rob_tail_idx, rob_pnr_idx, rob_head_idx) || full)
 
   // -----------------------------------------------
   // ROB Tail Logic

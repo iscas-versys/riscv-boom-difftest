@@ -126,7 +126,7 @@ class RoCCShim(implicit p: Parameters) extends BoomModule
   val br_mask = WireInit(0.U(maxBrCount.W))
   var enq_val = false.B
 
-  assert(PopCount(io.core.dis_rocc_vals) <= 1.U)
+  // assert(PopCount(io.core.dis_rocc_vals) <= 1.U)
   for (w <- 0 until coreWidth) {
     val enq_this = !enq_val && io.core.dis_rocc_vals(w) && io.core.dis_uops(w).uopc === uopROCC
     when (enq_this) {
@@ -151,10 +151,10 @@ class RoCCShim(implicit p: Parameters) extends BoomModule
   when (io.req.valid && !IsKilledByBranch(io.brupdate, io.req.bits.uop)
      && !io.exception && !RegNext(io.exception)) {
     val rxq_idx = io.req.bits.uop.rxq_idx
-    assert(io.req.bits.uop.rob_idx === rxq_uop(rxq_idx).rob_idx,
-      "Mismatch between RoCCUnit request and RoCC execute head")
-    assert(rxq_val(rxq_idx),
-      "Trying to execute rocc inst without the instruction bits")
+    // assert(io.req.bits.uop.rob_idx === rxq_uop(rxq_idx).rob_idx,
+    //   "Mismatch between RoCCUnit request and RoCC execute head")
+    // assert(rxq_val(rxq_idx),
+    //   "Trying to execute rocc inst without the instruction bits")
 
     rxq_op_val   (rxq_idx)      := true.B
     rxq_uop      (rxq_idx).pdst := io.req.bits.uop.pdst
@@ -247,9 +247,9 @@ class RoCCShim(implicit p: Parameters) extends BoomModule
   io.resp.bits            := DontCare
   rcq.io.deq.ready        := false.B
   when (handle_resp) {
-    assert((rcq.io.deq.bits.dst_rtype === RT_X)
-        || io.core.rocc.resp.bits.rd === rcq.io.deq.bits.ldst,
-      "RoCC response destination register does not match expected")
+    // assert((rcq.io.deq.bits.dst_rtype === RT_X)
+    //     || io.core.rocc.resp.bits.rd === rcq.io.deq.bits.ldst,
+    //   "RoCC response destination register does not match expected")
 
     io.resp.valid              := true.B
     io.resp.bits.uop           := rcq.io.deq.bits

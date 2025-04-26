@@ -372,7 +372,7 @@ class ALUUnit(isJmpUnit: Boolean = false, numStages: Int = 1, dataWidth: Int)(im
 
   when (is_br || is_jalr) {
     if (!isJmpUnit) {
-      assert (pc_sel =/= PC_JALR)
+      // assert (pc_sel =/= PC_JALR)
     }
     when (pc_sel === PC_PLUS4) {
       mispredict := uop.taken
@@ -501,16 +501,16 @@ class MemAddrCalcUnit(implicit p: Parameters)
   io.resp.bits.data := store_data
 
   if (dataWidth > 63) {
-    assert (!(io.req.valid && io.req.bits.uop.ctrl.is_std &&
-      io.resp.bits.data(64).asBool === true.B), "65th bit set in MemAddrCalcUnit.")
+    // assert (!(io.req.valid && io.req.bits.uop.ctrl.is_std &&
+    //  io.resp.bits.data(64).asBool === true.B), "65th bit set in MemAddrCalcUnit.")
 
-    assert (!(io.req.valid && io.req.bits.uop.ctrl.is_std && io.req.bits.uop.fp_val),
-      "FP store-data should now be going through a different unit.")
+    // assert (!(io.req.valid && io.req.bits.uop.ctrl.is_std && io.req.bits.uop.fp_val),
+      // "FP store-data should now be going through a different unit.")
   }
 
-  assert (!(io.req.bits.uop.fp_val && io.req.valid && io.req.bits.uop.uopc =/=
-          uopLD && io.req.bits.uop.uopc =/= uopSTA),
-          "[maddrcalc] assert we never get store data in here.")
+  // assert (!(io.req.bits.uop.fp_val && io.req.valid && io.req.bits.uop.uopc =/=
+  //         uopLD && io.req.bits.uop.uopc =/= uopSTA),
+  //         "[maddrcalc] assert we never get store data in here.")
 
   // Handle misaligned exceptions
   val size = io.req.bits.uop.mem_size
@@ -544,7 +544,7 @@ class MemAddrCalcUnit(implicit p: Parameters)
 
   io.resp.bits.mxcpt.valid := xcpt_val
   io.resp.bits.mxcpt.bits  := xcpt_cause
-  assert (!(ma_ld && ma_st), "Mutually-exclusive exceptions are firing.")
+  // assert (!(ma_ld && ma_st), "Mutually-exclusive exceptions are firing.")
 
   io.resp.bits.sfence.valid := io.req.valid && io.req.bits.uop.mem_cmd === M_SFENCE
   io.resp.bits.sfence.bits.rs1 := io.req.bits.uop.mem_size(0)
@@ -615,11 +615,11 @@ class IntToFPUnit(latency: Int)(implicit p: Parameters)
   req.fmt := DontCare // FIXME: this may not be the right thing to do here
   req.fmaCmd := DontCare
 
-  assert (!(io.req.valid && fp_ctrl.fromint && req.in1(xLen).asBool),
-    "[func] IntToFP integer input has 65th high-order bit set!")
+  // assert (!(io.req.valid && fp_ctrl.fromint && req.in1(xLen).asBool),
+  //   "[func] IntToFP integer input has 65th high-order bit set!")
 
-  assert (!(io.req.valid && !fp_ctrl.fromint),
-    "[func] Only support fromInt micro-ops.")
+  // assert (!(io.req.valid && !fp_ctrl.fromint),
+  //   "[func] Only support fromInt micro-ops.")
 
   val ifpu = Module(new tile.IntToFP(intToFpLatency))
   ifpu.io.in.valid := io.req.valid

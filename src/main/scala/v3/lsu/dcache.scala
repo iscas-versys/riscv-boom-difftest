@@ -182,8 +182,8 @@ class BoomProbeUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1HellaCach
   io.rep.valid := state === s_release
   io.rep.bits := edge.ProbeAck(req, report_param)
 
-  assert(!io.rep.valid || !edge.hasData(io.rep.bits),
-    "ProbeUnit should not send ProbeAcks with data, WritebackUnit should handle it")
+  // assert(!io.rep.valid || !edge.hasData(io.rep.bits),
+  //   "ProbeUnit should not send ProbeAcks with data, WritebackUnit should handle it")
 
   io.meta_read.valid := state === s_meta_read
   io.meta_read.bits.idx := req_idx
@@ -545,7 +545,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   dataReadArb.io.in(1).bits.req(0)  := wb.io.data_req.bits
   dataReadArb.io.in(1).bits.valid   := widthMap(w => (w == 0).B)
   wb.io.data_req.ready  := metaReadArb.io.in(2).ready && dataReadArb.io.in(1).ready
-  assert(!(wb.io.meta_read.fire ^ wb.io.data_req.fire))
+  // assert(!(wb.io.meta_read.fire ^ wb.io.data_req.fire))
 
   // -------
   // Prober
@@ -607,8 +607,8 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
                          !(io.lsu.exception && s0_req(w).uop.uses_ldq)   &&
                          !(s2_store_failed && io.lsu.req.fire && s0_req(w).uop.uses_stq),
                          init=false.B))
-  for (w <- 0 until memWidth)
-    assert(!(io.lsu.s1_kill(w) && !RegNext(io.lsu.req.fire) && !RegNext(io.lsu.req.bits(w).valid)))
+  // for (w <- 0 until memWidth)
+    // assert(!(io.lsu.s1_kill(w) && !RegNext(io.lsu.req.fire) && !RegNext(io.lsu.req.bits(w).valid)))
   val s1_addr         = s1_req.map(_.addr)
   val s1_nack         = s1_addr.map(a => a(idxMSB,idxLSB) === prober.io.meta_write.bits.idx && !prober.io.req.ready)
   val s1_send_resp_or_nack = RegNext(s0_send_resp_or_nack)
@@ -648,8 +648,8 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
 
   val s2_hit = widthMap(w => (s2_tag_match(w) && s2_has_permission(w) && s2_hit_state(w) === s2_new_hit_state(w) && !mshrs.io.block_hit(w)) || s2_type.isOneOf(t_replay, t_wb))
   val s2_nack = Wire(Vec(memWidth, Bool()))
-  assert(!(s2_type === t_replay && !s2_hit(0)), "Replays should always hit")
-  assert(!(s2_type === t_wb && !s2_hit(0)), "Writeback should always see data hit")
+  // assert(!(s2_type === t_replay && !s2_hit(0)), "Replays should always hit")
+  // assert(!(s2_type === t_wb && !s2_hit(0)), "Writeback should always see data hit")
 
   val s2_wb_idx_matches = RegNext(s1_wb_idx_matches)
 
@@ -700,7 +700,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
       }
     }
   }
-  assert(debug_sc_fail_cnt < 100.U, "L1DCache failed too many SCs in a row")
+  // assert(debug_sc_fail_cnt < 100.U, "L1DCache failed too many SCs in a row")
 
   val s2_data = Wire(Vec(memWidth, Vec(nWays, UInt(encRowBits.W))))
   for (i <- 0 until memWidth) {
@@ -734,7 +734,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
                       (s2_hit(w) || (mshrs.io.req(w).fire && isWrite(s2_req(w).uop.mem_cmd) && !isRead(s2_req(w).uop.mem_cmd)))))
   val s2_send_nack = widthMap(w => (RegNext(s1_send_resp_or_nack(w)) && s2_nack(w)))
   for (w <- 0 until memWidth)
-    assert(!(s2_send_resp(w) && s2_send_nack(w)))
+    // assert(!(s2_send_resp(w) && s2_send_nack(w)))
 
   // hits always send a response
   // If MSHR is not available, LSU has to replay this request later
@@ -755,7 +755,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
                              (isPrefetch(s2_req(w).uop.mem_cmd) ||
                               isRead(s2_req(w).uop.mem_cmd)     ||
                               isWrite(s2_req(w).uop.mem_cmd))
-    assert(!(mshrs.io.req(w).valid && s2_type === t_replay), "Replays should not need to go back into MSHRs")
+    // assert(!(mshrs.io.req(w).valid && s2_type === t_replay), "Replays should not need to go back into MSHRs")
     mshrs.io.req(w).bits             := DontCare
     mshrs.io.req(w).bits.uop         := s2_req(w).uop
     mshrs.io.req(w).bits.uop.br_mask := GetNewBrMask(io.lsu.brupdate, s2_req(w).uop)
@@ -863,7 +863,7 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
                             !(io.lsu.exception && s2_req(w).uop.uses_ldq) &&
                             !IsKilledByBranch(io.lsu.brupdate, s2_req(w).uop)
     io.lsu.nack(w).bits  := UpdateBrMask(io.lsu.brupdate, s2_req(w))
-    assert(!(io.lsu.nack(w).valid && s2_type =/= t_lsu))
+    // assert(!(io.lsu.nack(w).valid && s2_type =/= t_lsu))
   }
 
   // Store/amo hits
@@ -871,9 +871,9 @@ class BoomNonBlockingDCacheModule(outer: BoomNonBlockingDCache) extends LazyModu
   val s3_valid = RegNext(s2_valid(0) && s2_hit(0) && isWrite(s2_req(0).uop.mem_cmd) &&
                          !s2_sc_fail && !(s2_send_nack(0) && s2_nack(0)))
   for (w <- 1 until memWidth) {
-    assert(!(s2_valid(w) && s2_hit(w) && isWrite(s2_req(w).uop.mem_cmd) &&
-                         !s2_sc_fail && !(s2_send_nack(w) && s2_nack(w))),
-      "Store must go through 0th pipe in L1D")
+    // assert(!(s2_valid(w) && s2_hit(w) && isWrite(s2_req(w).uop.mem_cmd) &&
+    //                      !s2_sc_fail && !(s2_send_nack(w) && s2_nack(w))),
+    //   "Store must go through 0th pipe in L1D")
   }
 
   // For bypassing

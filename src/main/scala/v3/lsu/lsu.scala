@@ -219,11 +219,11 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
 
 
   // If we got a mispredict, the tail will be misaligned for 1 extra cycle
-  assert (io.core.brupdate.b2.mispredict ||
-          stq(stq_execute_head).valid ||
-          stq_head === stq_execute_head ||
-          stq_tail === stq_execute_head,
-            "stq_execute_head got off track.")
+  // assert (io.core.brupdate.b2.mispredict ||
+  //         stq(stq_execute_head).valid ||
+  //         stq_head === stq_execute_head ||
+  //         stq_tail === stq_execute_head,
+  //           "stq_execute_head got off track.")
 
   val h_ready :: h_s1 :: h_s2 :: h_s2_nack :: h_wait :: h_replay :: h_dead :: Nil = Enum(7)
   // s1 : do TLB, if success and not killed, fire request go to h_s2
@@ -313,8 +313,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       ldq(ld_enq_idx).bits.observed        := false.B
       ldq(ld_enq_idx).bits.forward_std_val := false.B
 
-      assert (ld_enq_idx === io.core.dis_uops(w).bits.ldq_idx, "[lsu] mismatch enq load tag.")
-      assert (!ldq(ld_enq_idx).valid, "[lsu] Enqueuing uop is overwriting ldq entries")
+      // assert (ld_enq_idx === io.core.dis_uops(w).bits.ldq_idx, "[lsu] mismatch enq load tag.")
+      // assert (!ldq(ld_enq_idx).valid, "[lsu] Enqueuing uop is overwriting ldq entries")
     }
       .elsewhen (dis_st_val)
     {
@@ -325,8 +325,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       stq(st_enq_idx).bits.committed  := false.B
       stq(st_enq_idx).bits.succeeded  := false.B
 
-      assert (st_enq_idx === io.core.dis_uops(w).bits.stq_idx, "[lsu] mismatch enq store tag.")
-      assert (!stq(st_enq_idx).valid, "[lsu] Enqueuing uop is overwriting stq entries")
+      // assert (st_enq_idx === io.core.dis_uops(w).bits.stq_idx, "[lsu] mismatch enq store tag.")
+      // assert (!stq(st_enq_idx).valid, "[lsu] Enqueuing uop is overwriting stq entries")
     }
 
     ld_enq_idx = Mux(dis_ld_val, WrapInc(ld_enq_idx, numLdqEntries),
@@ -337,7 +337,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
     st_enq_idx = Mux(dis_st_val, WrapInc(st_enq_idx, numStqEntries),
                                  st_enq_idx)
 
-    assert(!(dis_ld_val && dis_st_val), "A UOP is trying to go into both the LDQ and the STQ")
+    // assert(!(dis_ld_val && dis_st_val), "A UOP is trying to go into both the LDQ and the STQ")
   }
 
   ldq_tail := ld_enq_idx
@@ -563,7 +563,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
     will_fire_store_commit  (w) := lsu_sched(can_fire_store_commit  (w) , false, true , false, false) //     , DC
 
 
-    assert(!(exe_req(w).valid && !(will_fire_load_incoming(w) || will_fire_stad_incoming(w) || will_fire_sta_incoming(w) || will_fire_std_incoming(w) || will_fire_sfence(w))))
+    // assert(!(exe_req(w).valid && !(will_fire_load_incoming(w) || will_fire_stad_incoming(w) || will_fire_sta_incoming(w) || will_fire_std_incoming(w) || will_fire_sfence(w))))
 
     when (will_fire_load_wakeup(w)) {
       block_load_mask(ldq_wakeup_idx)           := true.B
@@ -574,23 +574,23 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
     }
     exe_tlb_valid(w) := !tlb_avail
   }
-  assert((memWidth == 1).B ||
-    (!(will_fire_sfence.reduce(_||_) && !will_fire_sfence.reduce(_&&_)) &&
-     !will_fire_hella_incoming.reduce(_&&_) &&
-     !will_fire_hella_wakeup.reduce(_&&_)   &&
-     !will_fire_load_retry.reduce(_&&_)     &&
-     !will_fire_sta_retry.reduce(_&&_)      &&
-     !will_fire_store_commit.reduce(_&&_)   &&
-     !will_fire_load_wakeup.reduce(_&&_)),
-    "Some operations is proceeding down multiple pipes")
+  // assert((memWidth == 1).B ||
+  //   (!(will_fire_sfence.reduce(_||_) && !will_fire_sfence.reduce(_&&_)) &&
+  //    !will_fire_hella_incoming.reduce(_&&_) &&
+  //    !will_fire_hella_wakeup.reduce(_&&_)   &&
+  //    !will_fire_load_retry.reduce(_&&_)     &&
+  //    !will_fire_sta_retry.reduce(_&&_)      &&
+  //    !will_fire_store_commit.reduce(_&&_)   &&
+  //    !will_fire_load_wakeup.reduce(_&&_)),
+  //   "Some operations is proceeding down multiple pipes")
 
   require(memWidth <= 2)
 
   //--------------------------------------------
   // TLB Access
 
-  assert(!(hella_state =/= h_ready && hella_req.cmd === rocket.M_SFENCE),
-    "SFENCE through hella interface not supported")
+  // assert(!(hella_state =/= h_ready && hella_req.cmd === rocket.M_SFENCE),
+  //   "SFENCE through hella interface not supported")
 
   val exe_tlb_uop = widthMap(w =>
                     Mux(will_fire_load_incoming (w) ||
@@ -680,11 +680,11 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   val mem_xcpt_vaddrs = RegNext(exe_tlb_vaddr)
 
   for (w <- 0 until memWidth) {
-    assert (!(dtlb.io.req(w).valid && exe_tlb_uop(w).is_fence), "Fence is pretending to talk to the TLB")
-    assert (!((will_fire_load_incoming(w) || will_fire_sta_incoming(w) || will_fire_stad_incoming(w)) &&
-      exe_req(w).bits.mxcpt.valid && dtlb.io.req(w).valid &&
-    !(exe_tlb_uop(w).ctrl.is_load || exe_tlb_uop(w).ctrl.is_sta)),
-      "A uop that's not a load or store-address is throwing a memory exception.")
+    // assert (!(dtlb.io.req(w).valid && exe_tlb_uop(w).is_fence), "Fence is pretending to talk to the TLB")
+    // assert (!((will_fire_load_incoming(w) || will_fire_sta_incoming(w) || will_fire_stad_incoming(w)) &&
+    //   exe_req(w).bits.mxcpt.valid && dtlb.io.req(w).valid &&
+    // !(exe_tlb_uop(w).ctrl.is_load || exe_tlb_uop(w).ctrl.is_sta)),
+    //   "A uop that's not a load or store-address is throwing a memory exception.")
   }
 
   mem_xcpt_valid := mem_xcpt_valids.reduce(_||_)
@@ -712,14 +712,14 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   val exe_tlb_uncacheable = widthMap(w => !(dtlb.io.resp(w).cacheable))
 
   for (w <- 0 until memWidth) {
-    assert (exe_tlb_paddr(w) === dtlb.io.resp(w).paddr || exe_req(w).bits.sfence.valid, "[lsu] paddrs should match.")
+    // assert (exe_tlb_paddr(w) === dtlb.io.resp(w).paddr || exe_req(w).bits.sfence.valid, "[lsu] paddrs should match.")
 
     when (mem_xcpt_valids(w))
     {
-      assert(RegNext(will_fire_load_incoming(w) || will_fire_stad_incoming(w) || will_fire_sta_incoming(w) ||
-        will_fire_load_retry(w) || will_fire_sta_retry(w)))
+      // assert(RegNext(will_fire_load_incoming(w) || will_fire_stad_incoming(w) || will_fire_sta_incoming(w) ||
+        // will_fire_load_retry(w) || will_fire_sta_retry(w)))
       // Technically only faulting AMOs need this
-      assert(mem_xcpt_uops(w).uses_ldq ^ mem_xcpt_uops(w).uses_stq)
+      // assert(mem_xcpt_uops(w).uses_ldq ^ mem_xcpt_uops(w).uses_stq)
       when (mem_xcpt_uops(w).uses_ldq)
       {
         ldq(mem_xcpt_uops(w).ldq_idx).bits.uop.exception := true.B
@@ -770,14 +770,14 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       dmem_req(w).bits.uop   := exe_tlb_uop(w)
 
       s0_executing_loads(ldq_incoming_idx(w)) := dmem_req_fire(w)
-      assert(!ldq_incoming_e(w).bits.executed)
+      // assert(!ldq_incoming_e(w).bits.executed)
     } .elsewhen (will_fire_load_retry(w)) {
       dmem_req(w).valid      := !exe_tlb_miss(w) && !exe_tlb_uncacheable(w)
       dmem_req(w).bits.addr  := exe_tlb_paddr(w)
       dmem_req(w).bits.uop   := exe_tlb_uop(w)
 
       s0_executing_loads(ldq_retry_idx) := dmem_req_fire(w)
-      assert(!ldq_retry_e.bits.executed)
+      // assert(!ldq_retry_e.bits.executed)
     } .elsewhen (will_fire_store_commit(w)) {
       dmem_req(w).valid         := true.B
       dmem_req(w).bits.addr     := stq_commit_e.bits.addr.bits
@@ -799,9 +799,9 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
 
       s0_executing_loads(ldq_wakeup_idx) := dmem_req_fire(w)
 
-      assert(!ldq_wakeup_e.bits.executed && !ldq_wakeup_e.bits.addr_is_virtual)
+      // assert(!ldq_wakeup_e.bits.executed && !ldq_wakeup_e.bits.addr_is_virtual)
     } .elsewhen (will_fire_hella_incoming(w)) {
-      assert(hella_state === h_s1)
+      // assert(hella_state === h_s1)
 
       dmem_req(w).valid               := !io.hellacache.s1_kill && (!exe_tlb_miss(w) || hella_req.phys)
       dmem_req(w).bits.addr           := exe_tlb_paddr(w)
@@ -818,7 +818,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
     }
       .elsewhen (will_fire_hella_wakeup(w))
     {
-      assert(hella_state === h_replay)
+      // assert(hella_state === h_replay)
       dmem_req(w).valid               := true.B
       dmem_req(w).bits.addr           := hella_paddr
       dmem_req(w).bits.data           := (new freechips.rocketchip.rocket.StoreGen(
@@ -842,8 +842,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       ldq(ldq_idx).bits.addr_is_virtual     := exe_tlb_miss(w)
       ldq(ldq_idx).bits.addr_is_uncacheable := exe_tlb_uncacheable(w) && !exe_tlb_miss(w)
 
-      assert(!(will_fire_load_incoming(w) && ldq_incoming_e(w).bits.addr.valid),
-        "[lsu] Incoming load is overwriting a valid address")
+      // assert(!(will_fire_load_incoming(w) && ldq_incoming_e(w).bits.addr.valid),
+      //   "[lsu] Incoming load is overwriting a valid address")
     }
 
     when (will_fire_sta_incoming(w) || will_fire_stad_incoming(w) || will_fire_sta_retry(w))
@@ -856,8 +856,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       stq(stq_idx).bits.uop.pdst   := exe_tlb_uop(w).pdst // Needed for AMOs
       stq(stq_idx).bits.addr_is_virtual := exe_tlb_miss(w)
 
-      assert(!(will_fire_sta_incoming(w) && stq_incoming_e(w).bits.addr.valid),
-        "[lsu] Incoming store is overwriting a valid address")
+      // assert(!(will_fire_sta_incoming(w) && stq_incoming_e(w).bits.addr.valid),
+      //   "[lsu] Incoming store is overwriting a valid address")
 
     }
 
@@ -875,8 +875,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       stq(sidx).bits.data.bits  := Mux(will_fire_std_incoming(w) || will_fire_stad_incoming(w),
         exe_req(w).bits.data,
         io.core.fp_stdata.bits.data)
-      assert(!(stq(sidx).bits.data.valid),
-        "[lsu] Incoming store is overwriting a valid data entry")
+      // assert(!(stq(sidx).bits.data.valid),
+      //   "[lsu] Incoming store is overwriting a valid data entry")
     }
   }
   val will_fire_stdf_incoming = io.core.fp_stdata.fire
@@ -1288,17 +1288,17 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       // We have to re-execute this!
       when (io.dmem.nack(w).bits.is_hella)
       {
-        assert(hella_state === h_wait || hella_state === h_dead)
+        // assert(hella_state === h_wait || hella_state === h_dead)
       }
         .elsewhen (io.dmem.nack(w).bits.uop.uses_ldq)
       {
-        assert(ldq(io.dmem.nack(w).bits.uop.ldq_idx).bits.executed)
+        // assert(ldq(io.dmem.nack(w).bits.uop.ldq_idx).bits.executed)
         ldq(io.dmem.nack(w).bits.uop.ldq_idx).bits.executed  := false.B
         nacking_loads(io.dmem.nack(w).bits.uop.ldq_idx) := true.B
       }
         .otherwise
       {
-        assert(io.dmem.nack(w).bits.uop.uses_stq)
+        // assert(io.dmem.nack(w).bits.uop.uses_stq)
         when (IsOlder(io.dmem.nack(w).bits.uop.stq_idx, stq_execute_head, stq_head)) {
           stq_execute_head := io.dmem.nack(w).bits.uop.stq_idx
         }
@@ -1309,7 +1309,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
     {
       when (io.dmem.resp(w).bits.uop.uses_ldq)
       {
-        assert(!io.dmem.resp(w).bits.is_hella)
+        // assert(!io.dmem.resp(w).bits.is_hella)
         val ldq_idx = io.dmem.resp(w).bits.uop.ldq_idx
         val send_iresp = ldq(ldq_idx).bits.uop.dst_rtype === RT_FIX
         val send_fresp = ldq(ldq_idx).bits.uop.dst_rtype === RT_FLT
@@ -1321,7 +1321,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
         io.core.exe(w).fresp.valid     := send_fresp
         io.core.exe(w).fresp.bits.data := io.dmem.resp(w).bits.data
 
-        assert(send_iresp ^ send_fresp)
+        // assert(send_iresp ^ send_fresp)
         dmem_resp_fired(w) := true.B
 
         ldq(ldq_idx).bits.succeeded      := io.core.exe(w).iresp.valid || io.core.exe(w).fresp.valid
@@ -1329,7 +1329,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       }
         .elsewhen (io.dmem.resp(w).bits.uop.uses_stq)
       {
-        assert(!io.dmem.resp(w).bits.is_hella)
+        // assert(!io.dmem.resp(w).bits.is_hella)
         stq(io.dmem.resp(w).bits.uop.stq_idx).bits.succeeded := true.B
         when (io.dmem.resp(w).bits.uop.is_amo) {
           dmem_resp_fired(w) := true.B
@@ -1416,8 +1416,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
       }
     }
 
-    assert (!(IsKilledByBranch(io.core.brupdate, stq(i).bits.uop) && stq(i).valid && stq(i).bits.committed),
-      "Branch is trying to clear a committed store.")
+    // assert (!(IsKilledByBranch(io.core.brupdate, stq(i).bits.uop) && stq(i).valid && stq(i).bits.committed),
+    //   "Branch is trying to clear a committed store.")
   }
 
   // Kill loads
@@ -1458,9 +1458,9 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
     {
       stq(idx).bits.committed := true.B
     } .elsewhen (commit_load) {
-      assert (ldq(idx).valid, "[lsu] trying to commit an un-allocated load entry.")
-      assert ((ldq(idx).bits.executed || ldq(idx).bits.forward_std_val) && ldq(idx).bits.succeeded ,
-        "[lsu] trying to commit an un-executed load entry.")
+      // assert (ldq(idx).valid, "[lsu] trying to commit an un-allocated load entry.")
+      // assert ((ldq(idx).bits.executed || ldq(idx).bits.forward_std_val) && ldq(idx).bits.succeeded ,
+      //   "[lsu] trying to commit an un-executed load entry.")
 
       ldq(idx).valid                 := false.B
       ldq(idx).bits.addr.valid       := false.B

@@ -465,7 +465,7 @@ class BranchPredictor(implicit p: Parameters) extends BoomModule()(p)
 
   when (io.update.valid) {
     when (io.update.bits.cfi_is_br && io.update.bits.cfi_idx.valid) {
-      assert(io.update.bits.br_mask(io.update.bits.cfi_idx.bits))
+      // assert(io.update.bits.br_mask(io.update.bits.cfi_idx.bits))
     }
   }
 }

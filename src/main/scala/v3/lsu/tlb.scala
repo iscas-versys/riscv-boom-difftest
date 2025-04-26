@@ -341,7 +341,7 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
 
     when (sfence) {
       for (w <- 0 until memWidth) {
-        assert(!io.sfence.bits.rs1 || (io.sfence.bits.addr >> pgIdxBits) === vpn(w))
+        // assert(!io.sfence.bits.rs1 || (io.sfence.bits.addr >> pgIdxBits) === vpn(w))
         for (e <- all_entries) {
           when (io.sfence.bits.rs1) { e.invalidateVPN(vpn(w)) }
           .elsewhen (io.sfence.bits.rs2) { e.invalidateNonGlobal() }

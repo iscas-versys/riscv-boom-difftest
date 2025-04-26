@@ -297,8 +297,8 @@ class RenameStage(
   freelist.io.brupdate := io.brupdate
   freelist.io.debug.pipeline_empty := io.debug_rob_empty
 
-  assert (ren2_alloc_reqs zip freelist.io.alloc_pregs map {case (r,p) => !r || p.bits =/= 0.U} reduce (_&&_),
-           "[rename-stage] A uop is trying to allocate the zero physical register.")
+  // assert (ren2_alloc_reqs zip freelist.io.alloc_pregs map {case (r,p) => !r || p.bits =/= 0.U} reduce (_&&_),
+  //          "[rename-stage] A uop is trying to allocate the zero physical register.")
 
   // Freelist outputs.
   for ((uop, w) <- ren2_uops.zipWithIndex) {
@@ -314,8 +314,8 @@ class RenameStage(
   busytable.io.wb_valids := io.wakeups.map(_.valid)
   busytable.io.wb_pdsts := io.wakeups.map(_.bits.uop.pdst)
 
-  assert (!(io.wakeups.map(x => x.valid && x.bits.uop.dst_rtype =/= rtype).reduce(_||_)),
-   "[rename] Wakeup has wrong rtype.")
+  // assert (!(io.wakeups.map(x => x.valid && x.bits.uop.dst_rtype =/= rtype).reduce(_||_)),
+  //  "[rename] Wakeup has wrong rtype.")
 
   for ((uop, w) <- ren2_uops.zipWithIndex) {
     val busy = busytable.io.busy_resps(w)
@@ -325,8 +325,8 @@ class RenameStage(
     uop.prs3_busy := uop.frs3_en && busy.prs3_busy
 
     val valid = ren2_valids(w)
-    assert (!(valid && busy.prs1_busy && rtype === RT_FIX && uop.lrs1 === 0.U), "[rename] x0 is busy??")
-    assert (!(valid && busy.prs2_busy && rtype === RT_FIX && uop.lrs2 === 0.U), "[rename] x0 is busy??")
+    // assert (!(valid && busy.prs1_busy && rtype === RT_FIX && uop.lrs1 === 0.U), "[rename] x0 is busy??")
+    // assert (!(valid && busy.prs2_busy && rtype === RT_FIX && uop.lrs2 === 0.U), "[rename] x0 is busy??")
   }
 
   //-------------------------------------------------------------

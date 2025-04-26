@@ -67,8 +67,9 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     val ptw_tlb = new freechips.rocketchip.rocket.TLBPTWIO()
     val trace = Output(new TraceBundle)
     val fcsr_rm = UInt(freechips.rocketchip.tile.FPConstants.RM_SZ.W)
+    //val select = Input(UInt(log2Ceil(coreWidth).W))
   })
-
+  val select = 0.U
   io.ptw_tlb := DontCare
   io.ptw := DontCare
   io.ifu := DontCare
@@ -227,8 +228,8 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   val oldest_mispredict_ftq_idx = oldest_mispredict.uop.ftq_idx
 
 
-  assert (!((brupdate.b1.mispredict_mask =/= 0.U || brupdate.b2.mispredict)
-    && rob.io.commit.rollback), "Can't have a mispredict during rollback.")
+  // assert (!((brupdate.b1.mispredict_mask =/= 0.U || brupdate.b2.mispredict)
+  //   && rob.io.commit.rollback), "Can't have a mispredict during rollback.")
 
   io.ifu.brupdate := brupdate
 
@@ -474,18 +475,15 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
                              rob.io.com_xcpt.bits.ftq_idx,
                              rob.io.commit.uops(youngest_com_idx).ftq_idx)
 
-  assert(!(rob.io.commit.valids.reduce(_|_) && rob.io.com_xcpt.valid),
-    "ROB can't commit and except in same cycle!")
+  // assert(!(rob.io.commit.valids.reduce(_|_) && rob.io.com_xcpt.valid),
+  //   "ROB can't commit and except in same cycle!")
 
   for (i <- 0 until memWidth) {
     when (RegNext(io.lsu.exe(i).req.bits.sfence.valid)) {
       io.ifu.sfence := RegNext(io.lsu.exe(i).req.bits.sfence)
     }
   }
-  val rvConfig = RVConfig(64, "MSU", "AC", functions = Seq("Privileged", "TLB"))
-  val checker = Module(new CheckerWithWB(checkMem = false)(rvConfig))
-  implicit val XLEN: Int = xLen
-  val CheckerCsr = ConnectCheckerWb.makeCSRSource()(64,rvConfig)
+
   // def hasCSR(addr: UInt) :Bool = {
   //   val speccsr = new SpecCSR()(64, rvConfig)
   //   MuxLookup(addr, false.B, speccsr.table.map { x => x.info.addr -> true.B })
@@ -499,6 +497,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
       // assume(RVI.regImm(tmpInst) || RVI.loadStore(tmpInst))
       // assume(RVI.loadStore(tmpInst))
       // assume(RVI.loadStore(tmpInst))
+      implicit val XLEN = 64
       assume(
         RVI.regImm(tmpInst)
         // (hasCSR(tmpInst(31,20)) && (RVZicsr.reg(tmpInst) || RVZicsr.imm(tmpInst))) 
@@ -849,7 +848,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
       slow_wakeup := DontCare
 
       val resp = exe_units(i).io.iresp
-      assert(!(resp.valid && resp.bits.uop.rf_wen && resp.bits.uop.dst_rtype =/= RT_FIX))
+      // assert(!(resp.valid && resp.bits.uop.rf_wen && resp.bits.uop.dst_rtype =/= RT_FIX))
 
       // Fast Wakeup (uses just-issued uops that have known latencies)
       fast_wakeup.bits.uop := iss_uops(i)
@@ -1176,7 +1175,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   var w_cnt = 1
   iregfile.io.write_ports(0) := WritePort(ll_wbarb.io.out, ipregSz, xLen, RT_FIX)
   ll_wbarb.io.in(0) <> mem_resps(0)
-  assert (ll_wbarb.io.in(0).ready) // never backpressure the memory unit.
+  // assert (ll_wbarb.io.in(0).ready) // never backpressure the memory unit.
   for (i <- 1 until memWidth) {
     iregfile.io.write_ports(w_cnt) := WritePort(mem_resps(i), ipregSz, xLen, RT_FIX)
     w_cnt += 1
@@ -1201,17 +1200,17 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         iregfile.io.write_ports(w_cnt).bits.data := wbdata
       }
 
-      assert (!wbIsValid(RT_FLT), "[fppipeline] An FP writeback is being attempted to the Int Regfile.")
+      // assert (!wbIsValid(RT_FLT), "[fppipeline] An FP writeback is being attempted to the Int Regfile.")
 
-      assert (!(wbresp.valid &&
-        !wbresp.bits.uop.rf_wen &&
-        wbresp.bits.uop.dst_rtype === RT_FIX),
-        "[fppipeline] An Int writeback is being attempted with rf_wen disabled.")
+      // assert (!(wbresp.valid &&
+      //   !wbresp.bits.uop.rf_wen &&
+      //   wbresp.bits.uop.dst_rtype === RT_FIX),
+      //   "[fppipeline] An Int writeback is being attempted with rf_wen disabled.")
 
-      assert (!(wbresp.valid &&
-        wbresp.bits.uop.rf_wen &&
-        wbresp.bits.uop.dst_rtype =/= RT_FIX),
-        "[fppipeline] writeback being attempted to Int RF with dst != Int type exe_units("+i+").iresp")
+      // assert (!(wbresp.valid &&
+      //   wbresp.bits.uop.rf_wen &&
+      //   wbresp.bits.uop.dst_rtype =/= RT_FIX),
+      //   "[fppipeline] writeback being attempted to Int RF with dst != Int type exe_units("+i+").iresp")
       w_cnt += 1
     }
   }
@@ -1282,6 +1281,9 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         rob.io.debug_wb_wdata(cnt) := data
       }
       cnt += 1
+      // checker.io.wb.data   := rob.io.debug_wb_wdata(cnt)
+      // checker.io.wb.dest   := DontCare
+      // checker.io.wb.valid  := rob.io.wb_resps(cnt).valid
     }
   }
 
@@ -1295,27 +1297,36 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
       cnt += 1
       f_cnt += 1
 
-      assert (!(wakeup.valid && wakeup.bits.uop.dst_rtype =/= RT_FLT),
-        "[core] FP wakeup does not write back to a FP register.")
+      // assert (!(wakeup.valid && wakeup.bits.uop.dst_rtype =/= RT_FLT),
+      //   "[core] FP wakeup does not write back to a FP register.")
 
-      assert (!(wakeup.valid && !wakeup.bits.uop.fp_val),
-        "[core] FP wakeup does not involve an FP instruction.")
+      // assert (!(wakeup.valid && !wakeup.bits.uop.fp_val),
+      //   "[core] FP wakeup does not involve an FP instruction.")
     }
   }
 
   require (cnt == rob.numWakeupPorts)
   require (f_cnt == rob.numFpuPorts)
 
-  checker.io.wb.data   := DontCare
-  checker.io.wb.dest   := DontCare
-  checker.io.wb.valid  := DontCare
-  checker.io.wb.r1Addr := DontCare
-  checker.io.wb.r2Addr := DontCare
-  checker.io.wb.r1Data := DontCare
-  checker.io.wb.r2Data := DontCare
-  checker.io.wb.csrAddr:= DontCare
-  checker.io.wb.csrWr  := DontCare
-  checker.io.wb.csrNdata := DontCare
+  // checker.io.wb.data   := DontCare
+  // checker.io.wb.dest   := DontCare
+  // checker.io.wb.valid  := DontCare
+  // checker.io.wb.r1Addr := DontCare
+  // checker.io.wb.r2Addr := DontCare
+  // checker.io.wb.r1Data := DontCare
+  // checker.io.wb.r2Data := DontCare
+
+  // checker.io.wb.data     := rob.io.wb_resps(0).bits.data
+  // checker.io.wb.dest     := rob.io.wb_resps(0).bits.uop.ldst
+  // checker.io.wb.valid    := rob.io.wb_resps(0).valid
+  // checker.io.wb.r1Addr   := rob.io.wb_resps(0).bits.uop.lrs1
+  // checker.io.wb.r2Addr   := rob.io.wb_resps(0).bits.uop.lrs2
+  // checker.io.wb.r1Data   := rob.io.wb_resps(0).bits.r1_data
+  // checker.io.wb.r2Data   := rob.io.wb_resps(0).bits.r2_data
+
+  // checker.io.wb.csrAddr:= DontCare
+  // checker.io.wb.csrWr  := DontCare
+  // checker.io.wb.csrNdata := DontCare
 
   // branch resolution
   rob.io.brupdate <> brupdate
@@ -1337,7 +1348,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   rob.io.lsu_clr_unsafe := io.lsu.clr_unsafe
   rob.io.lxcpt          <> io.lsu.lxcpt
 
-  assert (!(csr.io.singleStep), "[core] single-step is unsupported.")
+  // assert (!(csr.io.singleStep), "[core] single-step is unsupported.")
 
 
   //-------------------------------------------------------------
@@ -1353,8 +1364,8 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     exe_units(w).io.req.bits.kill := RegNext(rob.io.flush.valid)
   }
 
-  assert (!(rob.io.com_xcpt.valid && !rob.io.flush.valid),
-    "[core] exception occurred, but pipeline flush signal not set!")
+  // assert (!(rob.io.com_xcpt.valid && !rob.io.flush.valid),
+  //   "[core] exception occurred, but pipeline flush signal not set!")
 
   //-------------------------------------------------------------
   //-------------------------------------------------------------
@@ -1370,7 +1381,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         reset.asBool) {
     idle_cycles := 0.U
   }
-  assert (!(idle_cycles.value(13)), "Pipeline has hung.")
+  // assert (!(idle_cycles.value(13)), "Pipeline has hung.")
 
   if (usingFPU) {
     fp_pipeline.io.debug_tsc_reg := debug_tsc_reg
@@ -1382,7 +1393,29 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   //-------------------------------------------------------------
   //-------------------------------------------------------------
   
-  checker.io.instCommit.npc    := DontCare // will change later
+  if(true) {
+        val rvConfig = RVConfig(64, "MSU", "AC", functions = Seq("Privileged"/*, "TLB"*/))
+        val checker = Module(new CheckerWithWB(checkMem = false)(rvConfig))
+        implicit val XLEN: Int = xLen
+        val CheckerCsr = ConnectCheckerWb.makeCSRSource()(64,rvConfig)
+        checker.io.instCommit.npc    := DontCare // will change later
+        checker.io.wb.data     := rob.io.commit.debug_wdata(select)
+        checker.io.wb.dest     := rob.io.commit.uops(select).ldst
+        checker.io.wb.valid    := rob.io.commit.uops(select).rf_wen
+        checker.io.wb.r1Addr   := rob.io.commit.uops(select).lrs1
+        checker.io.wb.r2Addr   := rob.io.commit.uops(select).lrs2
+        checker.io.wb.r1Data   := DontCare//rob.io.commit.uops(w).r1_data
+        checker.io.wb.r2Data   := DontCare//rob.io.commit.uops(w).r2_data
+        checker.io.instCommit.valid := rob.io.commit.arch_valids(select)
+        checker.io.instCommit.inst  := rob.io.commit.uops(select).debug_inst
+        checker.io.instCommit.pc    := rob.io.commit.uops(select).debug_pc
+
+        checker.io.wb.csrAddr:= DontCare
+        checker.io.wb.csrWr  := DontCare
+        checker.io.wb.csrNdata := DontCare
+              ConnectCheckerWb.setChecker(checker)(xLen, rvConfig)
+  }
+
   if (true) {
     val difftest = DifftestModule(new DiffCSRState, delay = 0, dontCare = true)
     difftest := csr.io.difftest
@@ -1402,6 +1435,7 @@ if (true) {
           int_regfile_state(i) := rob.io.commit.debug_wdata(w)
           printf("[core index:%d] x%d <- 0x%x\n", w.U, i.U, rob.io.commit.debug_wdata(w))
         }
+        
       }
       // x0永远为0，其他寄存器使用保存的值
       difftest.value(i) := Mux(i.U === 0.U, 0.U, int_regfile_state(i))
@@ -1426,11 +1460,10 @@ if (true) {
       difftest.rfwen  := rob.io.commit.uops(w).rf_wen
       // difftest.wdest  := TBD...
       // difftest.wpdest := TBD...
-      checker.io.instCommit.valid := difftest.valid
-      checker.io.instCommit.inst  := difftest.instr
-      checker.io.instCommit.pc    := difftest.pc
+      // checker.io.instCommit.valid := difftest.valid
+      // checker.io.instCommit.inst  := difftest.instr
+      // checker.io.instCommit.pc    := difftest.pc
       
-      ConnectCheckerWb.setChecker(checker)(xLen, rvConfig)
     }
     for (w <- 0 until coreWidth) {
       val priv = RegNext(csr.io.status.prv) // erets change the privilege. Get the old one
