@@ -67,12 +67,17 @@ class RegisterRead(
   val rrd_uops         = Wire(Vec(issueWidth, new MicroOp()))
 
   val exe_reg_valids   = RegInit(VecInit(Seq.fill(issueWidth) { false.B }))
-  val exe_reg_uops     = Reg(Vec(issueWidth, new MicroOp()))
-  val exe_reg_rs1_data = Reg(Vec(issueWidth, Bits(registerWidth.W)))
-  val exe_reg_rs2_data = Reg(Vec(issueWidth, Bits(registerWidth.W)))
-  val exe_reg_rs3_data = Reg(Vec(issueWidth, Bits(registerWidth.W)))
-  val exe_reg_pred_data = Reg(Vec(issueWidth, Bool()))
+  // val exe_reg_uops     = Reg(Vec(issueWidth, new MicroOp()))
+  // val exe_reg_rs1_data = Reg(Vec(issueWidth, Bits(registerWidth.W)))
+  // val exe_reg_rs2_data = Reg(Vec(issueWidth, Bits(registerWidth.W)))
+  // val exe_reg_rs3_data = Reg(Vec(issueWidth, Bits(registerWidth.W)))
+  // val exe_reg_pred_data = Reg(Vec(issueWidth, Bool()))
 
+  val exe_reg_uops      = RegInit(VecInit(Seq.fill(issueWidth)(0.U.asTypeOf(new MicroOp()))))
+  val exe_reg_rs1_data  = RegInit(VecInit(Seq.fill(issueWidth)(0.U(registerWidth.W))))
+  val exe_reg_rs2_data  = RegInit(VecInit(Seq.fill(issueWidth)(0.U(registerWidth.W))))
+  val exe_reg_rs3_data  = RegInit(VecInit(Seq.fill(issueWidth)(0.U(registerWidth.W))))
+  val exe_reg_pred_data = RegInit(VecInit(Seq.fill(issueWidth)(false.B)))
   //-------------------------------------------------------------
   // hook up inputs
 

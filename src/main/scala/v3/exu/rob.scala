@@ -308,11 +308,17 @@ class Rob(
 
     // one bank
     val rob_val       = RegInit(VecInit(Seq.fill(numRobRows){false.B}))
-    val rob_bsy       = Reg(Vec(numRobRows, Bool()))
-    val rob_unsafe    = Reg(Vec(numRobRows, Bool()))
-    val rob_uop       = Reg(Vec(numRobRows, new MicroOp()))
-    val rob_exception = Reg(Vec(numRobRows, Bool()))
-    val rob_predicated = Reg(Vec(numRobRows, Bool())) // Was this instruction predicated out?
+    // val rob_bsy       = Reg(Vec(numRobRows, Bool()))
+    // val rob_unsafe    = Reg(Vec(numRobRows, Bool()))
+    // val rob_uop       = Reg(Vec(numRobRows, new MicroOp()))
+    // val rob_exception = Reg(Vec(numRobRows, Bool()))
+    // val rob_predicated = Reg(Vec(numRobRows, Bool())) // Was this instruction predicated out?
+
+    val rob_bsy       = RegInit(VecInit(Seq.fill(numRobRows)(false.B)))
+    val rob_unsafe    = RegInit(VecInit(Seq.fill(numRobRows)(false.B)))
+    val rob_uop       = RegInit(VecInit(Seq.fill(numRobRows)(0.U.asTypeOf(new MicroOp()))))
+    val rob_exception = RegInit(VecInit(Seq.fill(numRobRows)(false.B)))
+    val rob_predicated = RegInit(VecInit(Seq.fill(numRobRows)(false.B))) // Was this instruction predicated out?
 
     val rob_debug_wdata = Mem(numRobRows, UInt(xLen.W))
 

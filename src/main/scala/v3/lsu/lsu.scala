@@ -936,9 +936,10 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
 
   // Task 1: Clr ROB busy bit
   val clr_bsy_valid   = RegInit(widthMap(w => false.B))
-  val clr_bsy_rob_idx = Reg(Vec(memWidth, UInt(robAddrSz.W)))
-  val clr_bsy_brmask  = Reg(Vec(memWidth, UInt(maxBrCount.W)))
-
+  // val clr_bsy_rob_idx = Reg(Vec(memWidth, UInt(robAddrSz.W)))
+  // val clr_bsy_brmask  = Reg(Vec(memWidth, UInt(maxBrCount.W)))
+  val clr_bsy_rob_idx = RegInit(VecInit(Seq.fill(memWidth)(0.U(robAddrSz.W))))
+  val clr_bsy_brmask = RegInit(VecInit(Seq.fill(memWidth)(0.U(maxBrCount.W))))
   for (w <- 0 until memWidth) {
     clr_bsy_valid   (w) := false.B
     clr_bsy_rob_idx (w) := 0.U

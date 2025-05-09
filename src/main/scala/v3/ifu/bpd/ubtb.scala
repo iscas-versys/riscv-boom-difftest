@@ -96,8 +96,12 @@ class MicroBTBBranchPredictorBank(params: BoomMicroBTBParams)(implicit p: Parame
   val s1_update_cfi_idx = s1_update.bits.cfi_idx.bits
   val s1_update_meta    = s1_update.bits.meta.asTypeOf(new MicroBTBPredictMeta)
 
-  val wrbypass_idxs    = Reg(Vec(nWrBypassEntries, UInt(log2Ceil(nSets).W)))
-  val wrbypass         = Reg(Vec(nWrBypassEntries, Vec(bankWidth, new MicroBTBMeta)))
+  // val wrbypass_idxs    = Reg(Vec(nWrBypassEntries, UInt(log2Ceil(nSets).W)))
+  // val wrbypass         = Reg(Vec(nWrBypassEntries, Vec(bankWidth, new MicroBTBMeta)))
+  val wrbypass_idxs = RegInit(VecInit(Seq.fill(nWrBypassEntries)(0.U(log2Ceil(nSets).W))))
+  val wrbypass = RegInit(VecInit(Seq.fill(nWrBypassEntries)(
+    VecInit(Seq.fill(bankWidth)(0.U.asTypeOf(new MicroBTBMeta)))
+  )))
   val wrbypass_enq_idx = RegInit(0.U(log2Ceil(nWrBypassEntries).W))
 
   val wrbypass_hits = VecInit((0 until nWrBypassEntries) map { i =>

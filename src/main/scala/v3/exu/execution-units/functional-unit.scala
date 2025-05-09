@@ -234,8 +234,8 @@ abstract class PipelinedFunctionalUnit(
 
   if (numStages > 0) {
     val r_valids = RegInit(VecInit(Seq.fill(numStages) { false.B }))
-    val r_uops   = Reg(Vec(numStages, new MicroOp()))
-
+    // val r_uops   = Reg(Vec(numStages, new MicroOp()))
+    val r_uops = RegInit(VecInit(Seq.fill(numStages)(0.U.asTypeOf(new MicroOp()))))
     // handle incoming request
     r_valids(0) := io.req.valid && !IsKilledByBranch(io.brupdate, io.req.bits.uop) && !io.req.bits.kill
     r_uops(0)   := io.req.bits.uop
@@ -444,8 +444,10 @@ class ALUUnit(isJmpUnit: Boolean = false, numStages: Int = 1, dataWidth: Int)(im
 //   io.resp.bits.data := reg_data
 
   val r_val  = RegInit(VecInit(Seq.fill(numStages) { false.B }))
-  val r_data = Reg(Vec(numStages, UInt(xLen.W)))
-  val r_pred = Reg(Vec(numStages, Bool()))
+  // val r_data = Reg(Vec(numStages, UInt(xLen.W)))
+  // val r_pred = Reg(Vec(numStages, Bool()))
+  val r_data = RegInit(VecInit(Seq.fill(numStages)(0.U(xLen.W))))
+  val r_pred = RegInit(VecInit(Seq.fill(numStages)(false.B)))
   val alu_out = Mux(io.req.bits.uop.is_sfb_shadow && io.req.bits.pred_data,
     Mux(io.req.bits.uop.ldst_is_rs1, io.req.bits.rs1_data, io.req.bits.rs2_data),
     Mux(io.req.bits.uop.uopc === uopMOV, io.req.bits.rs2_data, alu.io.out))

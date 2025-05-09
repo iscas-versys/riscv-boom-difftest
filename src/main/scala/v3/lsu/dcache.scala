@@ -45,7 +45,8 @@ class BoomWritebackUnit(implicit edge: TLEdgeOut, p: Parameters) extends L1Hella
   val r2_data_req_cnt = RegInit(0.U(log2Up(refillCycles+1).W))
   val data_req_cnt = RegInit(0.U(log2Up(refillCycles+1).W))
   val (_, last_beat, all_beats_done, beat_count) = edge.count(io.release)
-  val wb_buffer = Reg(Vec(refillCycles, UInt(encRowBits.W)))
+  // val wb_buffer = Reg(Vec(refillCycles, UInt(encRowBits.W)))
+  val wb_buffer = RegInit(VecInit(Seq.fill(refillCycles)(0.U(encRowBits.W))))
   val acked = RegInit(false.B)
 
   io.idx.valid       := state =/= s_invalid
@@ -348,7 +349,8 @@ class BoomBankedDataArray(implicit p: Parameters) extends AbstractBoomDataArray 
   val s2_nacks          = RegNext(s1_nacks)
 
   for (w <- 0 until nWays) {
-    val s2_bank_reads = Reg(Vec(nBanks, Bits(encRowBits.W)))
+    // val s2_bank_reads = Reg(Vec(nBanks, Bits(encRowBits.W)))
+    val s2_bank_reads = RegInit(VecInit(Seq.fill(nBanks)(0.U(encRowBits.W))))
 
     for (b <- 0 until nBanks) {
       val array = DescribedSRAM(

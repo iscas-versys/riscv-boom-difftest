@@ -54,7 +54,8 @@ class FetchBuffer(implicit p: Parameters) extends BoomModule
   require (numEntries % coreWidth == 0)
   val numRows = numEntries / coreWidth
 
-  val ram = Reg(Vec(numEntries, new MicroOp))
+  // val ram = Reg(Vec(numEntries, new MicroOp))
+  val ram = RegInit(VecInit(Seq.fill(numEntries)(0.U.asTypeOf(new MicroOp))))
   ram.suggestName("fb_uop_ram")
   val deq_vec = Wire(Vec(numRows, Vec(coreWidth, new MicroOp)))
 
