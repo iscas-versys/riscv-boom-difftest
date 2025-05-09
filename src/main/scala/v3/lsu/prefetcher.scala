@@ -48,8 +48,10 @@ class NullPrefetcher(implicit edge: TLEdgeOut, p: Parameters) extends DataPrefet
 class NLPrefetcher(implicit edge: TLEdgeOut, p: Parameters) extends DataPrefetcher
 {
   val req_valid = RegInit(false.B)
-  val req_addr  = Reg(UInt(coreMaxAddrBits.W))
-  val req_cmd   = Reg(UInt(M_SZ.W))
+  // val req_addr  = Reg(UInt(coreMaxAddrBits.W))
+  // val req_cmd   = Reg(UInt(M_SZ.W))
+  val req_addr   = RegInit(0.U(coreMaxAddrBits.W))
+  val req_cmd    = RegInit(0.U(M_SZ.W))
 
   val mshr_req_addr = io.req_addr + cacheBlockBytes.U
   val cacheable = edge.manager.supportsAcquireBSafe(mshr_req_addr, lgCacheBlockBytes.U)

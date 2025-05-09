@@ -60,10 +60,12 @@ class LocalBranchPredictorBank(implicit p: Parameters) extends AbstractLocalBran
   io.f1_lhist := s1_rhist
   io.f3_lhist := s3_rhist
 
-  val f3_do_update    = Reg(Bool())
-  val f3_update_idx   = Reg(UInt(log2Ceil(nSets).W))
-  val f3_update_lhist = Reg(UInt(localHistoryLength.W))
-
+  // val f3_do_update    = Reg(Bool())
+  // val f3_update_idx   = Reg(UInt(log2Ceil(nSets).W))
+  // val f3_update_lhist = Reg(UInt(localHistoryLength.W))
+  val f3_do_update    = RegInit(false.B)
+  val f3_update_idx   = RegInit(0.U(log2Ceil(nSets).W))
+  val f3_update_lhist = RegInit(0.U(localHistoryLength.W))
 
   f3_do_update := false.B
   f3_update_idx := DontCare

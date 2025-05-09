@@ -210,12 +210,18 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
 
 
 
-  val ldq_head         = Reg(UInt(ldqAddrSz.W))
-  val ldq_tail         = Reg(UInt(ldqAddrSz.W))
-  val stq_head         = Reg(UInt(stqAddrSz.W)) // point to next store to clear from STQ (i.e., send to memory)
-  val stq_tail         = Reg(UInt(stqAddrSz.W))
-  val stq_commit_head  = Reg(UInt(stqAddrSz.W)) // point to next store to commit
-  val stq_execute_head = Reg(UInt(stqAddrSz.W)) // point to next store to execute
+  // val ldq_head         = Reg(UInt(ldqAddrSz.W))
+  // val ldq_tail         = Reg(UInt(ldqAddrSz.W))
+  // val stq_head         = Reg(UInt(stqAddrSz.W)) // point to next store to clear from STQ (i.e., send to memory)
+  // val stq_tail         = Reg(UInt(stqAddrSz.W))
+  // val stq_commit_head  = Reg(UInt(stqAddrSz.W)) // point to next store to commit
+  // val stq_execute_head = Reg(UInt(stqAddrSz.W)) // point to next store to execute
+  val ldq_head         = RegInit(0.U(ldqAddrSz.W))
+  val ldq_tail         = RegInit(0.U(ldqAddrSz.W))
+  val stq_head         = RegInit(0.U(stqAddrSz.W)) // point to next store to clear from STQ (i.e., send to memory)
+  val stq_tail         = RegInit(0.U(stqAddrSz.W))
+  val stq_commit_head  = RegInit(0.U(stqAddrSz.W)) // point to next store to commit
+  val stq_execute_head = RegInit(0.U(stqAddrSz.W)) // point to next store to execute
 
 
   // If we got a mispredict, the tail will be misaligned for 1 extra cycle
@@ -240,7 +246,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   val hella_state           = RegInit(h_ready)
   val hella_req             = Reg(new rocket.HellaCacheReq)
   val hella_data            = Reg(new rocket.HellaCacheWriteData)
-  val hella_paddr           = Reg(UInt(paddrBits.W))
+  // val hella_paddr           = Reg(UInt(paddrBits.W))
+  val hella_paddr           = RegInit(0.U(paddrBits.W))
   val hella_xcpt            = Reg(new rocket.HellaCacheExceptions)
 
 
@@ -982,8 +989,10 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   }
 
   val stdf_clr_bsy_valid   = RegInit(false.B)
-  val stdf_clr_bsy_rob_idx = Reg(UInt(robAddrSz.W))
-  val stdf_clr_bsy_brmask  = Reg(UInt(maxBrCount.W))
+  // val stdf_clr_bsy_rob_idx = Reg(UInt(robAddrSz.W))
+  // val stdf_clr_bsy_brmask  = Reg(UInt(maxBrCount.W))
+  val stdf_clr_bsy_rob_idx = RegInit(0.U(robAddrSz.W))
+  val stdf_clr_bsy_brmask  = RegInit(0.U(maxBrCount.W))
   stdf_clr_bsy_valid   := false.B
   stdf_clr_bsy_rob_idx := 0.U
   stdf_clr_bsy_brmask  := 0.U
@@ -1202,7 +1211,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
     }
 
     // If stores remain blocked for 15 cycles, block load wakeups to get a store through
-    val store_blocked_counter = Reg(UInt(4.W))
+    // val store_blocked_counter = Reg(UInt(4.W))
+    val store_blocked_counter = RegInit(0.U(4.W))
     when (will_fire_store_commit(0) || !can_fire_store_commit(0)) {
       store_blocked_counter := 0.U
     } .elsewhen (can_fire_store_commit(0) && !will_fire_store_commit(0)) {

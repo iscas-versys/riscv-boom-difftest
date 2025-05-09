@@ -119,7 +119,8 @@ abstract class AbstractRenameStage(
 
   for (w <- 0 until plWidth) {
     val r_valid  = RegInit(false.B)
-    val r_uop    = Reg(new MicroOp)
+    // val r_uop    = Reg(new MicroOp)
+    val r_uop    = RegInit(0.U.asTypeOf(new MicroOp))
     val next_uop = Wire(new MicroOp)
 
     next_uop := r_uop
@@ -369,7 +370,8 @@ class PredRenameStage(
   val to_busy = WireInit(VecInit(0.U(ftqSz.W).asBools))
   val unbusy = WireInit(VecInit(0.U(ftqSz.W).asBools))
 
-  val current_ftq_idx = Reg(UInt(log2Ceil(ftqSz).W))
+  // val current_ftq_idx = Reg(UInt(log2Ceil(ftqSz).W))
+  val current_ftq_idx = RegInit(0.U(log2Ceil(ftqSz).W))
   var next_ftq_idx = current_ftq_idx
 
   for (w <- 0 until plWidth) {

@@ -132,7 +132,8 @@ class ICacheModule(outer: ICache) extends LazyModuleImp(outer)
   val s2_hit = RegNext(s1_hit)
 
 
-  val invalidated = Reg(Bool())
+  // val invalidated = Reg(Bool())
+  val invalidated = RegInit(false.B)
   val refill_valid = RegInit(false.B)
   val refill_fire = tl_out.a.fire
   val s2_miss = s2_valid && !s2_hit && !RegNext(refill_valid)

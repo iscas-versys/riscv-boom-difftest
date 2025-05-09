@@ -255,8 +255,10 @@ class Rob(
   // exception info
   // TODO compress xcpt cause size. Most bits in the middle are zero.
   val r_xcpt_val       = RegInit(false.B)
-  val r_xcpt_uop       = Reg(new MicroOp())
-  val r_xcpt_badvaddr  = Reg(UInt(coreMaxAddrBits.W))
+  // val r_xcpt_uop       = Reg(new MicroOp())
+  val r_xcpt_uop       = RegInit(0.U.asTypeOf(new MicroOp()))
+  // val r_xcpt_badvaddr  = Reg(UInt(coreMaxAddrBits.W))
+  val r_xcpt_badvaddr  = RegInit(0.U(coreMaxAddrBits.W))
   io.flush_frontend := r_xcpt_val
 
   //--------------------------------------------------

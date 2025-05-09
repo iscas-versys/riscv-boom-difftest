@@ -649,8 +649,8 @@ abstract class IterativeFunctionalUnit(dataWidth: Int)(implicit p: Parameters)
     numBypassStages = 0,
     dataWidth = dataWidth)
 {
-  val r_uop = Reg(new MicroOp())
-
+  // val r_uop = Reg(new MicroOp())
+  val r_uop = RegInit(0.U.asTypeOf(new MicroOp()))
   val do_kill = Wire(Bool())
   do_kill := io.req.bits.kill // irrelevant default
 

@@ -136,10 +136,14 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
 
 
   val grantack = Reg(Valid(new TLBundleE(edge.bundle)))
-  val refill_ctr  = Reg(UInt(log2Ceil(cacheDataBeats).W))
-  val commit_line = Reg(Bool())
-  val grant_had_data = Reg(Bool())
-  val finish_to_prefetch = Reg(Bool())
+  // val refill_ctr  = Reg(UInt(log2Ceil(cacheDataBeats).W))
+  val refill_ctr  = RegInit(0.U(log2Ceil(cacheDataBeats).W))
+  // val commit_line = Reg(Bool())
+  val commit_line = RegInit(false.B)
+  // val grant_had_data = Reg(Bool())
+  val grant_had_data = RegInit(false.B)
+  // val finish_to_prefetch = Reg(Bool())
+  val finish_to_prefetch = RegInit(false.B)
 
   // Block probes if a tag write we started is still in the pipeline
   val meta_hazard = RegInit(0.U(2.W))
@@ -419,7 +423,8 @@ class BoomIOMSHR(id: Int)(implicit edge: TLEdgeOut, p: Parameters) extends BoomM
   }
 
   val req = Reg(new BoomDCacheReq)
-  val grant_word = Reg(UInt(wordBits.W))
+  // val grant_word = Reg(UInt(wordBits.W))
+  val grant_word = RegInit(0.U(wordBits.W))
 
   val s_idle :: s_mem_access :: s_mem_ack :: s_resp :: Nil = Enum(4)
 

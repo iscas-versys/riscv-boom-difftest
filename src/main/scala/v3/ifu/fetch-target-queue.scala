@@ -225,10 +225,13 @@ class FetchTargetQueue(implicit p: Parameters) extends BoomModule
 
   val bpd_update_mispredict = RegInit(false.B)
   val bpd_update_repair = RegInit(false.B)
-  val bpd_repair_idx = Reg(UInt(log2Ceil(ftqSz).W))
-  val bpd_end_idx = Reg(UInt(log2Ceil(ftqSz).W))
-  val bpd_repair_pc = Reg(UInt(vaddrBitsExtended.W))
-
+  // val bpd_repair_idx = Reg(UInt(log2Ceil(ftqSz).W))
+  // val bpd_end_idx = Reg(UInt(log2Ceil(ftqSz).W))
+  // val bpd_repair_pc = Reg(UInt(vaddrBitsExtended.W))
+  val bpd_repair_idx = RegInit(0.U(log2Ceil(ftqSz).W))
+  val bpd_end_idx    = RegInit(0.U(log2Ceil(ftqSz).W))
+  val bpd_repair_pc  = RegInit(0.U(vaddrBitsExtended.W))
+  
   val bpd_idx = Mux(io.redirect.valid, io.redirect.bits,
     Mux(bpd_update_repair || bpd_update_mispredict, bpd_repair_idx, bpd_ptr))
   val bpd_entry = RegNext(ram(bpd_idx))

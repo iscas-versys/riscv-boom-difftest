@@ -294,9 +294,12 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   // (only used for printf and vcd dumps - the actual counters are in the CSRFile)
   val debug_tsc_reg = RegInit(0.U(xLen.W))
   val debug_irt_reg = RegInit(0.U(xLen.W))
-  val debug_brs     = Reg(Vec(4, UInt(xLen.W)))
-  val debug_jals    = Reg(Vec(4, UInt(xLen.W)))
-  val debug_jalrs   = Reg(Vec(4, UInt(xLen.W)))
+  // val debug_brs     = Reg(Vec(4, UInt(xLen.W)))
+  // val debug_jals    = Reg(Vec(4, UInt(xLen.W)))
+  // val debug_jalrs   = Reg(Vec(4, UInt(xLen.W)))
+  val debug_brs   = RegInit(VecInit(Seq.fill(4)(0.U(xLen.W))))
+  val debug_jals  = RegInit(VecInit(Seq.fill(4)(0.U(xLen.W))))
+  val debug_jalrs = RegInit(VecInit(Seq.fill(4)(0.U(xLen.W))))
 
   for (j <- 0 until 4) {
     debug_brs(j) := debug_brs(j) + PopCount(VecInit((0 until coreWidth) map {i =>
@@ -488,25 +491,29 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   //   val speccsr = new SpecCSR()(64, rvConfig)
   //   MuxLookup(addr, false.B, speccsr.table.map { x => x.info.addr -> true.B })
   // }
-  val tmpInst = Wire(UInt(32.W))
+  // val tmpInst = Wire(UInt(32.W))
   for (w <- 0 until coreWidth){
-    tmpInst := io.ifu.fetchpacket.bits.uops(w).bits.inst
-  }
-  when (io.ifu.commit.valid){
-      // Some assume example
-      // assume(RVI.regImm(tmpInst) || RVI.loadStore(tmpInst))
-      // assume(RVI.loadStore(tmpInst))
-      // assume(RVI.loadStore(tmpInst))
+    // tmpInst := io.ifu.fetchpacket.bits.uops(w).bits.inst
+    when(io.ifu.fetchpacket.bits.uops(w).valid){
       implicit val XLEN = 64
-      assume(
-        RVI.regImm(tmpInst)
-        // (hasCSR(tmpInst(31,20)) && (RVZicsr.reg(tmpInst) || RVZicsr.imm(tmpInst))) 
-        // || 
-        // (  RVI.regImm(tmpInst) || RVI.loadStore(tmpInst)  || RVI.other(tmpInst))
-        // ||
-        // (RVPrivileged.trap_return(tmpInst))
-      )
+      assume(RVI.regImm(io.ifu.fetchpacket.bits.uops(w).bits.debug_inst))
     }
+  }
+  // when (io.ifu.commit.valid){
+  //     // Some assume example
+  //     // assume(RVI.regImm(tmpInst) || RVI.loadStore(tmpInst))
+  //     // assume(RVI.loadStore(tmpInst))
+  //     // assume(RVI.loadStore(tmpInst))
+  //     implicit val XLEN = 64
+  //     assume(
+  //       RVI.regImm(tmpInst)
+  //       // (hasCSR(tmpInst(31,20)) && (RVZicsr.reg(tmpInst) || RVZicsr.imm(tmpInst))) 
+  //       // || 
+  //       // (  RVI.regImm(tmpInst) || RVI.loadStore(tmpInst)  || RVI.other(tmpInst))
+  //       // ||
+  //       // (RVPrivileged.trap_return(tmpInst))
+  //     )
+  //   }
 
   //-------------------------------------------------------------
   //-------------------------------------------------------------
@@ -1393,19 +1400,54 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   //-------------------------------------------------------------
   //-------------------------------------------------------------
   
+  if (true) {
+    val difftest = DifftestModule(new DiffCSRState, delay = 0, dontCare = true)
+    difftest := csr.io.difftest
+  }
+
+  val int_regfile_state = RegInit(VecInit(Seq.fill(32)(0.U(xLen.W))))
+  val resultRegWire = Wire(Vec(32, UInt(xLen.W)))
+
+  if (true) {
+      val difftest = DifftestModule(new DiffArchIntRegState)
+      difftest.coreid := 0.U
+      // 添加寄存器数组来保存所有寄存器的值
+      // 获取32个整数逻辑寄存器的值
+      for (i <- 0 until 32) {
+        // 检查当前提交的指令是否写入该逻辑寄存器
+        for (w <- 0 until coreWidth) {
+          when (rob.io.commit.arch_valids(w) && rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst === i.U) {
+            int_regfile_state(i) := rob.io.commit.debug_wdata(w)
+            printf("[core index:%d] x%d <- 0x%x\n", w.U, i.U, rob.io.commit.debug_wdata(w))
+          }
+          
+        }
+        // x0永远为0，其他寄存器使用保存的值
+        difftest.value(i) := Mux(i.U === 0.U, 0.U, int_regfile_state(i))
+        
+        resultRegWire(i) := difftest.value(i)
+        resultRegWire(0) := 0.U
+        //ConnectCheckerWb.setRegSource(resultRegWire)
+      }
+    }
+
   if(true) {
         val rvConfig = RVConfig(64, "MSU", "AC", functions = Seq("Privileged"/*, "TLB"*/))
         val checker = Module(new CheckerWithWB(checkMem = false)(rvConfig))
         implicit val XLEN: Int = xLen
         val CheckerCsr = ConnectCheckerWb.makeCSRSource()(64,rvConfig)
         checker.io.instCommit.npc    := DontCare // will change later
-        checker.io.wb.data     := rob.io.commit.debug_wdata(select)
+        val wData = Wire(Vec(coreWidth, UInt(xLen.W)))
+        for (w <- 0 until coreWidth) {
+          wData(w) := Mux(rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U, rob.io.commit.debug_wdata(w), 0.U)
+        }
+        checker.io.wb.data     := wData(select)
         checker.io.wb.dest     := rob.io.commit.uops(select).ldst
         checker.io.wb.valid    := rob.io.commit.uops(select).rf_wen
         checker.io.wb.r1Addr   := rob.io.commit.uops(select).lrs1
         checker.io.wb.r2Addr   := rob.io.commit.uops(select).lrs2
-        checker.io.wb.r1Data   := DontCare//rob.io.commit.uops(w).r1_data
-        checker.io.wb.r2Data   := DontCare//rob.io.commit.uops(w).r2_data
+        checker.io.wb.r1Data   := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs1))
+        checker.io.wb.r2Data   := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs2))
         checker.io.instCommit.valid := rob.io.commit.arch_valids(select)
         checker.io.instCommit.inst  := rob.io.commit.uops(select).debug_inst
         checker.io.instCommit.pc    := rob.io.commit.uops(select).debug_pc
@@ -1413,38 +1455,9 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         checker.io.wb.csrAddr:= DontCare
         checker.io.wb.csrWr  := DontCare
         checker.io.wb.csrNdata := DontCare
-              ConnectCheckerWb.setChecker(checker)(xLen, rvConfig)
+        ConnectCheckerWb.setChecker(checker)(xLen, rvConfig)
   }
 
-  if (true) {
-    val difftest = DifftestModule(new DiffCSRState, delay = 0, dontCare = true)
-    difftest := csr.io.difftest
-  }
-
-if (true) {
-    val difftest = DifftestModule(new DiffArchIntRegState)
-    difftest.coreid := 0.U
-    // 添加寄存器数组来保存所有寄存器的值
-    val int_regfile_state = RegInit(VecInit(Seq.fill(32)(0.U(xLen.W))))
-    val resultRegWire = Wire(Vec(32, UInt(xLen.W)))
-    // 获取32个整数逻辑寄存器的值
-    for (i <- 0 until 32) {
-      // 检查当前提交的指令是否写入该逻辑寄存器
-      for (w <- 0 until coreWidth) {
-        when (rob.io.commit.arch_valids(w) && rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst === i.U) {
-          int_regfile_state(i) := rob.io.commit.debug_wdata(w)
-          printf("[core index:%d] x%d <- 0x%x\n", w.U, i.U, rob.io.commit.debug_wdata(w))
-        }
-        
-      }
-      // x0永远为0，其他寄存器使用保存的值
-      difftest.value(i) := Mux(i.U === 0.U, 0.U, int_regfile_state(i))
-      
-      resultRegWire(i) := difftest.value(i)
-      resultRegWire(0) := 0.U
-      //ConnectCheckerWb.setRegSource(resultRegWire)
-    }
-}
 
   if (true) {
     var new_commit_cnt = 0.U

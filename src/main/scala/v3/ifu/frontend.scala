@@ -584,7 +584,8 @@ class BoomFrontendModule(outer: BoomFrontend) extends LazyModuleImp(outer)
   f3_fetch_bundle.shadowed_mask := f3_shadowed_mask
 
   // Tracks trailing 16b of previous fetch packet
-  val f3_prev_half    = Reg(UInt(16.W))
+  // val f3_prev_half    = Reg(UInt(16.W))
+  val f3_prev_half    = RegInit(0.U(16.W))
   // Tracks if last fetchpacket contained a half-inst
   val f3_prev_is_half = RegInit(false.B)
 

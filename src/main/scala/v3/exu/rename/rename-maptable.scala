@@ -68,7 +68,10 @@ class RenameMapTable(
 
   // The map table register array and its branch snapshots.
   val map_table = RegInit(VecInit(Seq.fill(numLregs){0.U(pregSz.W)}))
-  val br_snapshots = Reg(Vec(maxBrCount, Vec(numLregs, UInt(pregSz.W))))
+  // val br_snapshots = Reg(Vec(maxBrCount, Vec(numLregs, UInt(pregSz.W))))
+  val br_snapshots = RegInit(VecInit.fill(maxBrCount)(
+    VecInit.fill(numLregs)(0.U(pregSz.W))
+  ))
 
   // The intermediate states of the map table following modification by each pipeline slot.
   val remap_table = Wire(Vec(plWidth+1, Vec(numLregs, UInt(pregSz.W))))

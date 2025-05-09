@@ -129,11 +129,17 @@ class NBDTLB(instruction: Boolean, lgMaxSize: Int, cfg: TLBConfig)(implicit edge
 
   val s_ready :: s_request :: s_wait :: s_wait_invalidate :: Nil = Enum(4)
   val state = RegInit(s_ready)
-  val r_refill_tag = Reg(UInt(vpnBits.W))
-  val r_superpage_repl_addr = Reg(UInt(log2Ceil(superpage_entries.size).W))
-  val r_sectored_repl_addr = Reg(UInt(log2Ceil(sectored_entries.size).W))
-  val r_sectored_hit_addr = Reg(UInt(log2Ceil(sectored_entries.size).W))
-  val r_sectored_hit = Reg(Bool())
+  // val r_refill_tag = Reg(UInt(vpnBits.W))
+  // val r_superpage_repl_addr = Reg(UInt(log2Ceil(superpage_entries.size).W))
+  // val r_sectored_repl_addr = Reg(UInt(log2Ceil(sectored_entries.size).W))
+  // val r_sectored_hit_addr = Reg(UInt(log2Ceil(sectored_entries.size).W))
+  // val r_sectored_hit = Reg(Bool())
+
+  val r_refill_tag            = RegInit(0.U(vpnBits.W))
+  val r_superpage_repl_addr   = RegInit(0.U(log2Ceil(superpage_entries.size).W))
+  val r_sectored_repl_addr    = RegInit(0.U(log2Ceil(sectored_entries.size).W))
+  val r_sectored_hit_addr     = RegInit(0.U(log2Ceil(sectored_entries.size).W))
+  val r_sectored_hit          = RegInit(false.B)
 
   val priv = if (instruction) io.ptw.status.prv else io.ptw.status.dprv
   val priv_s = priv(0)
