@@ -1245,7 +1245,8 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
   // - 1) the incoming store-address finds a faulting load (it is by definition younger)
   // - 2) the incoming load or store address is excepting. It must be older and thus takes precedent.
   val r_xcpt_valid = RegInit(false.B)
-  val r_xcpt       = Reg(new Exception)
+  // val r_xcpt       = Reg(new Exception)
+  val r_xcpt       = RegInit(0.U.asTypeOf(new Exception))
 
   val ld_xcpt_valid = failed_loads.reduce(_|_)
   val ld_xcpt_uop   = ldq(Mux(l_idx >= numLdqEntries.U, l_idx - numLdqEntries.U, l_idx)).bits.uop

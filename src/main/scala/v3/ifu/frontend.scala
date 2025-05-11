@@ -439,7 +439,8 @@ class BoomFrontendModule(outer: BoomFrontend) extends LazyModuleImp(outer)
 
   val s2_valid = RegNext(s1_valid && !f1_clear, false.B)
   val s2_vpc   = RegNext(s1_vpc)
-  val s2_ghist = Reg(new GlobalHistory)
+  // val s2_ghist = Reg(new GlobalHistory)
+  val s2_ghist = RegInit((0.U).asTypeOf(new GlobalHistory))
   s2_ghist := s1_ghist
   val s2_ppc  = RegNext(s1_ppc)
   val s2_tsrc = RegNext(s1_tsrc) // tsrc provides the predictor component which provided the prediction TO this instruction
