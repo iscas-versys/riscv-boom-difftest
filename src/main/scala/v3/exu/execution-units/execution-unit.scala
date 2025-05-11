@@ -401,6 +401,8 @@ class ALUExeUnit(
     io.ll_iresp <> io.lsu_io.iresp
     if (usingFPU) {
       io.ll_fresp <> io.lsu_io.fresp
+    } else {
+      io.lsu_io.fresp := DontCare
     }
   }
 

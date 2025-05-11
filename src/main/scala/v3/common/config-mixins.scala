@@ -79,6 +79,79 @@ class WithRationalBoomTiles extends Config((site, here, up) => {
   }
 })
 
+class WithNBMCBooms(n: Int = 1) extends Config(
+  new WithTAGELBPD ++ // Default to TAGE-L BPD
+  new Config((site, here, up) => {
+    case TilesLocated(InSubsystem) => {
+      val prev = up(TilesLocated(InSubsystem), site)
+      val idOffset = up(NumTiles)
+      (0 until n).map { i =>
+        val coreWidth = 1
+        val memWidth = 1
+        BoomTileAttachParams(
+          tileParams = BoomTileParams(
+            core = BoomCoreParams(
+              fetchWidth = 4,
+              decodeWidth = coreWidth,
+              numRobEntries = 4,
+              issueParams = Seq(
+                IssueParams(issueWidth=1, numEntries=4, iqType=IQT_MEM.litValue, dispatchWidth=1),
+                IssueParams(issueWidth=1, numEntries=8, iqType=IQT_INT.litValue, dispatchWidth=1)
+                ),
+              numIntPhysRegisters = 33,
+              numLdqEntries = 4,
+              numStqEntries = 4,
+              maxBrCount = 4,
+              numFetchBufferEntries = 8,
+              ftq = FtqParameters(nEntries=8),
+              nPerfCounters = 2,
+              numRXQEntries = 4,
+              numRCQEntries = 4,
+              // BPU
+              enableBranchPrediction = false,
+              numRasEntries = 0,
+              // FPU
+              fpu = None,
+              usingFPU = false,
+              //TLB
+              nL2TLBEntries = 0,
+              nPTECacheEntries = 0,
+              useDebug = false,
+            ),
+            dcache = Some(
+              DCacheParams(
+                rowBits = 64,
+                nSets = 2,
+                nWays = 1,
+                nTLBSets = 1,
+                nTLBWays = 4,
+                nMSHRs = 2,
+                nSDQ = 2,
+                nRPQ = 2,
+                blockBytes = site(CacheBlockBytes),
+                )
+            ),
+            icache = Some(
+              ICacheParams(
+                rowBits = 64,
+                nSets = 2,
+                nWays = 1,
+                fetchBytes = 2*4,
+                nTLBSets = 1,
+                nTLBWays = 4,
+                blockBytes = site(CacheBlockBytes),
+                )
+            ),
+            tileId = i + idOffset
+          ),
+          crossingParams = RocketCrossingParams()
+        )
+      } ++ prev
+    }
+    case NumTiles => up(NumTiles) + n
+  })
+)
+
 /**
  * 1-wide BOOM.
  */

@@ -496,7 +496,10 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     // tmpInst := io.ifu.fetchpacket.bits.uops(w).bits.inst
     when(io.ifu.fetchpacket.bits.uops(w).valid){
       implicit val XLEN = 64
-      assume(RVI.regImm(io.ifu.fetchpacket.bits.uops(w).bits.debug_inst))
+      val tmpInst = io.ifu.fetchpacket.bits.uops(w).bits.debug_inst
+      assume(
+        RVI.regImm(tmpInst) || RVI.regReg(tmpInst) || RVI.control(tmpInst)
+      )
     }
   }
   // when (io.ifu.commit.valid){
@@ -1170,9 +1173,14 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
 
 
   if (usingFPU) {
-    io.lsu.fp_stdata <> fp_pipeline.io.to_sdq
+    // io.lsu.fp_stdata <> fp_pipeline.io.to_sdq
+    io.lsu.fp_stdata.valid := false.B
+    io.lsu.fp_stdata.bits  := DontCare
   }
-
+  else {
+    io.lsu.fp_stdata.valid := false.B
+    io.lsu.fp_stdata.bits  := DontCare
+  }
   //-------------------------------------------------------------
   //-------------------------------------------------------------
   // **** Writeback Stage ****
