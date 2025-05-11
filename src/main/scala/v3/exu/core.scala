@@ -219,6 +219,47 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   b2.jalr_target := RegNext(jmp_unit.io.brinfo.jalr_target)
   b2.target_offset := oldest_mispredict.target_offset
 
+  // Debug Branch Info
+  class DebugBrInfo extends Bundle {
+    val valid = Bool()
+    val rob_idx = UInt(log2Ceil(numRobEntries).W)
+    val bj_addr = UInt(vaddrBitsExtended.W)
+  }
+  val debug_br_target = Wire(UInt(vaddrBitsExtended.W))
+  debug_br_target := ((AlignPCToBoundary(io.ifu.get_pc(1).pc, icBlockBytes) | b2.uop.pc_lob).asSInt 
+                  + b2.target_offset + (Fill(vaddrBitsExtended-1, b2.uop.edge_inst) << 1).asSInt).asUInt
+  val debug_bj_addr = Mux(b2.cfi_type === CFI_JALR, b2.jalr_target, debug_br_target)
+  val debug_br_res_idx = RegInit(0.U(log2Ceil(numRobEntries).W))
+  val debug_br_res = RegInit(VecInit(Seq.fill(numRobEntries)(0.U.asTypeOf(new DebugBrInfo))))
+//   val debug_br_res = Vec(numRobEntries, RegInit(0.U.asTypeOf(new DebugBrInfo)))
+
+  when(b2.taken) {
+    debug_br_res(debug_br_res_idx).valid := true.B
+    debug_br_res(debug_br_res_idx).rob_idx := b2.uop.rob_idx
+    debug_br_res(debug_br_res_idx).bj_addr := debug_bj_addr
+
+    debug_br_res_idx := Mux(
+      debug_br_res_idx === (numRobEntries - 1).U,
+      0.U,
+      debug_br_res_idx + 1.U)
+  }
+  when(rob.io.commit.valids.reduce(_|_)) {
+    for (i <- 0 until coreWidth) {
+        when(rob.io.commit.valids(i)) {
+            for (j <- 0 until numRobEntries) {
+                when(debug_br_res(j).valid && debug_br_res(j).rob_idx === rob.io.commit.uops(i).rob_idx) {
+                    debug_br_res(j).valid := false.B
+                }
+            }
+        }
+    }
+  }
+  when(RegNext(rob.io.flush.valid)) {
+    for (i <- 0 until numRobEntries) {
+      debug_br_res(i).valid := false.B
+    }
+  }
+
   val oldest_mispredict_ftq_idx = oldest_mispredict.uop.ftq_idx
 
 
@@ -1396,6 +1437,21 @@ if (true) {
       difftest.index  := w.U
       difftest.valid  := rob.io.commit.arch_valids(w)
       difftest.pc     := rob.io.commit.uops(w).debug_pc
+      val difftest_inst_bj_taken = Wire(Bool())
+      val difftest_inst_bj_addr = Wire(UInt(vaddrBitsExtended.W))
+      difftest_inst_bj_taken := false.B
+      difftest_inst_bj_addr := 0.U
+      for (i <- 0 until numRobEntries) {
+        when(debug_br_res(i).valid && debug_br_res(i).rob_idx === rob.io.commit.uops(w).rob_idx) {
+            difftest_inst_bj_taken := true.B
+            difftest_inst_bj_addr := debug_br_res(i).bj_addr
+        }
+      }
+      val difftest_inst_npc = Wire(UInt(vaddrBitsExtended.W))
+      difftest_inst_npc := Mux(rob.io.commit.uops(w).is_rvc,
+                                    rob.io.commit.uops(w).debug_pc + 2.U,
+                                    rob.io.commit.uops(w).debug_pc + 4.U)
+      difftest.npc    := Mux(difftest_inst_bj_taken, difftest_inst_bj_addr, difftest_inst_npc)
       difftest.instr  := rob.io.commit.uops(w).debug_inst
       difftest.skip   := 0.U // TBD...
       difftest.isRVC  := rob.io.commit.uops(w).is_rvc
