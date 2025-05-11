@@ -106,7 +106,8 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   val s_invalid :: s_refill_req :: s_refill_resp :: s_drain_rpq_loads :: s_meta_read :: s_meta_resp_1 :: s_meta_resp_2 :: s_meta_clear :: s_wb_meta_read :: s_wb_req :: s_wb_resp :: s_commit_line :: s_drain_rpq :: s_meta_write_req :: s_mem_finish_1 :: s_mem_finish_2 :: s_prefetched :: s_prefetch :: Nil = Enum(18)
   val state = RegInit(s_invalid)
 
-  val req     = Reg(new BoomDCacheReqInternal)
+  // val req     = Reg(new BoomDCacheReqInternal)
+  val req     = RegInit(0.U.asTypeOf(new BoomDCacheReqInternal))
   val req_idx = req.addr(untagBits-1, blockOffBits)
   val req_tag = req.addr >> untagBits
   val req_block_addr = (req.addr >> blockOffBits) << blockOffBits
@@ -135,7 +136,8 @@ class BoomMSHR(implicit edge: TLEdgeOut, p: Parameters) extends BoomModule()(p)
   rpq.io.deq.ready := false.B
 
 
-  val grantack = Reg(Valid(new TLBundleE(edge.bundle)))
+  // val grantack = Reg(Valid(new TLBundleE(edge.bundle)))
+  val grantack = RegInit(0.U.asTypeOf(Valid(new TLBundleE(edge.bundle))))
   // val refill_ctr  = Reg(UInt(log2Ceil(cacheDataBeats).W))
   val refill_ctr  = RegInit(0.U(log2Ceil(cacheDataBeats).W))
   // val commit_line = Reg(Bool())
@@ -422,7 +424,8 @@ class BoomIOMSHR(id: Int)(implicit edge: TLEdgeOut, p: Parameters) extends BoomM
     (dat >> shift)(wordBits-1, 0)
   }
 
-  val req = Reg(new BoomDCacheReq)
+  // val req = Reg(new BoomDCacheReq)
+  val req = RegInit(0.U.asTypeOf(new BoomDCacheReq))
   // val grant_word = Reg(UInt(wordBits.W))
   val grant_word = RegInit(0.U(wordBits.W))
 

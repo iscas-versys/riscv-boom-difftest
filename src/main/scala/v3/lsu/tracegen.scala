@@ -29,9 +29,11 @@ class BoomLSUShim(implicit p: Parameters) extends BoomModule()(p)
   io.lsu.tsc_reg := 0.U(1.W)
 
   val rob_sz = numRobEntries
-  val rob = Reg(Vec(rob_sz, new HellaCacheReq))
+  // val rob = Reg(Vec(rob_sz, new HellaCacheReq))
+  val rob = RegInit(VecInit(Seq.fill(rob_sz)(0.U.asTypeOf(new HellaCacheReq))))
   val rob_respd = RegInit(VecInit((~(0.U(rob_sz.W))).asBools))
-  val rob_uop = Reg(Vec(rob_sz, new MicroOp))
+  // val rob_uop = Reg(Vec(rob_sz, new MicroOp))
+  val rob_uop = RegInit(VecInit(Seq.fill(rob_sz)(0.U.asTypeOf(new MicroOp))))
   val rob_bsy  = RegInit(VecInit(0.U(rob_sz.W).asBools))
   val rob_head = RegInit(0.U(log2Up(rob_sz).W))
   val rob_tail = RegInit(0.U(log2Up(rob_sz).W))
