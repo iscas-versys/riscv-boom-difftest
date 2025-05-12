@@ -50,6 +50,7 @@ import rvspeccore.core.RVConfig
 import rvspeccore.checker._
 import rvspeccore.core.spec._
 import rvspeccore.core.spec.instset.csr.{CSR => SpecCSR}
+import freechips.rocketchip.util.TestPrefixSums.test
 
 /**
  * Top level core object that connects the Frontend to the rest of the pipeline.
@@ -68,12 +69,14 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     val trace = Output(new TraceBundle)
     val fcsr_rm = UInt(freechips.rocketchip.tile.FPConstants.RM_SZ.W)
     //val select = Input(UInt(log2Ceil(coreWidth).W))
+    // val test_output = Output(Bool())
   })
   val select = 0.U
   io.ptw_tlb := DontCare
   io.ptw := DontCare
   io.ifu := DontCare
 
+  // io.test_output := false.B
   //**********************************
   // construct all of the modules
 
@@ -186,7 +189,8 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   // Dealing with branch resolutions
 
   // The individual branch resolutions from each ALU
-  val brinfos = Reg(Vec(coreWidth, new BrResolutionInfo()))
+  // val brinfos = Reg(Vec(coreWidth, new BrResolutionInfo()))
+  val brinfos = RegInit(VecInit(Seq.fill(coreWidth)(0.U.asTypeOf(new BrResolutionInfo))))
 
   // "Merged" branch update info from all ALUs
   // brmask contains masks for rapidly clearing mispredicted instructions
@@ -194,7 +198,8 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   //           brindices is delayed a cycle
   val brupdate  = Wire(new BrUpdateInfo)
   val b1    = Wire(new BrUpdateMasks)
-  val b2    = Reg(new BrResolutionInfo)
+  // val b2    = Reg(new BrResolutionInfo)
+  val b2 = RegInit(0.U.asTypeOf(new BrResolutionInfo))
 
   brupdate.b1 := b1
   brupdate.b2 := b2
@@ -224,6 +229,48 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   b2.uop         := UpdateBrMask(brupdate, oldest_mispredict.uop)
   b2.jalr_target := RegNext(jmp_unit.io.brinfo.jalr_target)
   b2.target_offset := oldest_mispredict.target_offset
+
+
+  // Debug Branch Info
+  class DebugBrInfo extends Bundle {
+    val valid = Bool()
+    val rob_idx = UInt(log2Ceil(numRobEntries).W)
+    val bj_addr = UInt(vaddrBitsExtended.W)
+  }
+  val debug_br_target = Wire(UInt(vaddrBitsExtended.W))
+  debug_br_target := ((AlignPCToBoundary(io.ifu.get_pc(1).pc, icBlockBytes) | b2.uop.pc_lob).asSInt 
+                  + b2.target_offset + (Fill(vaddrBitsExtended-1, b2.uop.edge_inst) << 1).asSInt).asUInt
+  val debug_bj_addr = Mux(b2.cfi_type === CFI_JALR, b2.jalr_target, debug_br_target)
+  val debug_br_res_idx = RegInit(0.U(log2Ceil(numRobEntries).W))
+  val debug_br_res = RegInit(VecInit(Seq.fill(numRobEntries)(0.U.asTypeOf(new DebugBrInfo))))
+//   val debug_br_res = Vec(numRobEntries, RegInit(0.U.asTypeOf(new DebugBrInfo)))
+
+  when(b2.taken) {
+    debug_br_res(debug_br_res_idx).valid := true.B
+    debug_br_res(debug_br_res_idx).rob_idx := b2.uop.rob_idx
+    debug_br_res(debug_br_res_idx).bj_addr := debug_bj_addr
+
+    debug_br_res_idx := Mux(
+      debug_br_res_idx === (numRobEntries - 1).U,
+      0.U,
+      debug_br_res_idx + 1.U)
+  }
+  when(rob.io.commit.valids.reduce(_|_)) {
+    for (i <- 0 until coreWidth) {
+        when(rob.io.commit.valids(i)) {
+            for (j <- 0 until numRobEntries) {
+                when(debug_br_res(j).valid && debug_br_res(j).rob_idx === rob.io.commit.uops(i).rob_idx) {
+                    debug_br_res(j).valid := false.B
+                }
+            }
+        }
+    }
+  }
+  when(RegNext(rob.io.flush.valid)) {
+    for (i <- 0 until numRobEntries) {
+      debug_br_res(i).valid := false.B
+    }
+  }
 
   val oldest_mispredict_ftq_idx = oldest_mispredict.uop.ftq_idx
 
@@ -1444,7 +1491,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         val checker = Module(new CheckerWithWB(checkMem = false)(rvConfig))
         implicit val XLEN: Int = xLen
         val CheckerCsr = ConnectCheckerWb.makeCSRSource()(64,rvConfig)
-        checker.io.instCommit.npc    := DontCare // will change later
+
         val wData = Wire(Vec(coreWidth, UInt(xLen.W)))
         for (w <- 0 until coreWidth) {
           wData(w) := Mux(rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U, rob.io.commit.debug_wdata(w), 0.U)
@@ -1459,6 +1506,23 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         checker.io.instCommit.valid := rob.io.commit.arch_valids(select)
         checker.io.instCommit.inst  := rob.io.commit.uops(select).debug_inst
         checker.io.instCommit.pc    := rob.io.commit.uops(select).debug_pc
+
+        val checker_inst_bj_taken = Wire(Bool())
+        val checker_inst_bj_addr = Wire(UInt(vaddrBitsExtended.W))
+        checker_inst_bj_taken := false.B
+        checker_inst_bj_addr := 0.U
+        for (i <- 0 until numRobEntries) {
+          when(debug_br_res(i).valid && debug_br_res(i).rob_idx === rob.io.commit.uops(select).rob_idx) {
+              checker_inst_bj_taken := true.B
+              checker_inst_bj_addr  := debug_br_res(i).bj_addr
+          }
+        }
+        val checker_inst_npc = Wire(UInt(vaddrBitsExtended.W))
+        checker_inst_npc := Mux(rob.io.commit.uops(select).is_rvc,
+                                      rob.io.commit.uops(select).debug_pc + 2.U,
+                                      rob.io.commit.uops(select).debug_pc + 4.U)
+
+        checker.io.instCommit.npc  := Mux(checker_inst_bj_taken, checker_inst_bj_addr, checker_inst_npc)
 
         checker.io.wb.csrAddr:= DontCare
         checker.io.wb.csrWr  := DontCare

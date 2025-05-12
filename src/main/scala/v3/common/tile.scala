@@ -163,6 +163,10 @@ class BoomTileModuleImp(outer: BoomTile) extends BaseTileModuleImp(outer){
 
   val hellaCachePorts  = ListBuffer[HellaCacheIO]()
 
+  val io_test_output = IO(Output(Bool()))
+  io_test_output := core.io.test_output
+  printf("test_output = %d\n", io_test_output)
+
   outer.reportWFI(None) // TODO: actually report this?
 
   outer.decodeCoreInterrupts(core.io.interrupts) // Decode the interrupt vector
