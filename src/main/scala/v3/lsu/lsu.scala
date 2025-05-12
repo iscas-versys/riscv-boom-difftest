@@ -120,6 +120,16 @@ class LSUCoreIO(implicit p: Parameters) extends BoomBundle()(p)
   val fp_stdata   = Flipped(Decoupled(new ExeUnitResp(fLen)))
 
   val commit      = Input(new CommitSignals)
+  
+  val debug_mem_info = Output(Vec(coreWidth, new Bundle {
+    val read_valid  = Bool()
+    val write_valid = Bool()
+    val addr  = UInt(64.W)
+    val mask  = UInt(4.W)
+    val wdata  = Bits(64.W)
+    val rdata  = Bits(64.W)
+  }))
+
   val commit_load_at_rob_head = Input(Bool())
 
   // Stores clear busy bit when stdata is received
@@ -1483,14 +1493,42 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
 
     }
 
-    if (MEMTRACE_PRINTF) {
+    io.core.debug_mem_info(w).read_valid  := DontCare
+    io.core.debug_mem_info(w).write_valid := DontCare
+    io.core.debug_mem_info(w).addr        := DontCare
+    io.core.debug_mem_info(w).mask        := DontCare
+    io.core.debug_mem_info(w).wdata       := DontCare
+    io.core.debug_mem_info(w).rdata       := DontCare
+
+    if (true) {
       when (commit_store || commit_load) {
         val uop    = Mux(commit_store, stq(idx).bits.uop, ldq(idx).bits.uop)
         val addr   = Mux(commit_store, stq(idx).bits.addr.bits, ldq(idx).bits.addr.bits)
         val stdata = Mux(commit_store, stq(idx).bits.data.bits, 0.U)
         val wbdata = Mux(commit_store, stq(idx).bits.debug_wb_data, ldq(idx).bits.debug_wb_data)
-        printf("MT %x %x %x %x %x %x %x\n",
+        printf("MT tsc_reg: %x, uopc: %x, mem_cmd: %x, mem_size: %x, addr: %x, stdata: %x, wbdata: %x\n",
           io.core.tsc_reg, uop.uopc, uop.mem_cmd, uop.mem_size, addr, stdata, wbdata)
+          val mask = MuxLookup(uop.mem_size, "b0000".U)(
+            Seq(
+              "b00".U -> ("b0001".U << addr(1, 0)),
+              "b01".U -> ("b0011".U << addr(1, 0)),
+              "b10".U -> ("b1111".U), //FIXME:
+              "b11".U -> ("b1111".U)  //FIXME:
+            )
+          )
+          io.core.debug_mem_info(w).read_valid  := commit_load
+          io.core.debug_mem_info(w).write_valid := commit_store
+          io.core.debug_mem_info(w).addr  := addr
+          io.core.debug_mem_info(w).mask  := mask
+          io.core.debug_mem_info(w).wdata := stdata
+          io.core.debug_mem_info(w).rdata := wbdata
+      }.otherwise{
+          io.core.debug_mem_info(w).read_valid  := 0.U
+          io.core.debug_mem_info(w).write_valid := 0.U
+          io.core.debug_mem_info(w).addr        := 0.U
+          io.core.debug_mem_info(w).mask        := 0.U
+          io.core.debug_mem_info(w).wdata       := 0.U
+          io.core.debug_mem_info(w).rdata       := 0.U
       }
     }
 

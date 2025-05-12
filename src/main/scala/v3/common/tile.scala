@@ -163,9 +163,43 @@ class BoomTileModuleImp(outer: BoomTile) extends BaseTileModuleImp(outer){
 
   val hellaCachePorts  = ListBuffer[HellaCacheIO]()
 
-  val io_test_output = IO(Output(Bool()))
-  io_test_output := core.io.test_output
-  printf("test_output = %d\n", io_test_output)
+  val io_rvfi = IO(new RVFIIO)
+  io_rvfi := core.io.rvfi
+
+  when(io_rvfi.valid){
+    printf("[Debug] Valid: %d, Order: %d, Insn: %x, Trap: %d, Halt: %d, Intr: %d, Mode: %d\n",
+      io_rvfi.valid,
+      io_rvfi.order,
+      io_rvfi.insn,
+      io_rvfi.trap,
+      io_rvfi.halt,
+      io_rvfi.intr,
+      io_rvfi.mode
+    )
+
+    printf("[Debug] ixl: %d, rs1_addr: %d, rs2_addr: %d, rs1_rdata: %x, rs2_rdata: %x, rd_addr: %d, rd_wdata: %x\n",
+      io_rvfi.ixl,
+      io_rvfi.rs1_addr,
+      io_rvfi.rs2_addr,
+      io_rvfi.rs1_rdata,
+      io_rvfi.rs2_rdata,
+      io_rvfi.rd_addr,
+      io_rvfi.rd_wdata
+    )
+
+    printf("[Debug] pc_rdata: %x, pc_wdata: %x\n",
+      io_rvfi.pc_rdata,
+      io_rvfi.pc_wdata
+    )
+    
+    printf("[Debug] mem_addr: %x, mem_rmask: %x, mem_wmask: %x, mem_rdata: %x, mem_wdata: %x\n",
+      io_rvfi.mem_addr,
+      io_rvfi.mem_rmask,
+      io_rvfi.mem_wmask,
+      io_rvfi.mem_rdata,
+      io_rvfi.mem_wdata
+    )
+  }
 
   outer.reportWFI(None) // TODO: actually report this?
 

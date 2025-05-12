@@ -51,6 +51,39 @@ import rvspeccore.checker._
 import rvspeccore.core.spec._
 import rvspeccore.core.spec.instset.csr.{CSR => SpecCSR}
 import freechips.rocketchip.util.TestPrefixSums.test
+import chisel3.util.experimental.BoringUtils
+
+class RVFIIO extends Bundle {
+  val valid = Output(Bool())
+  val order = Output(UInt(64.W))
+  val insn = Output(UInt(32.W))
+  val trap = Output(Bool())
+  val halt = Output(Bool())
+  val intr = Output(Bool())
+  val mode = Output(UInt(2.W))
+  val ixl = Output(UInt(2.W))
+  val rs1_addr = Output(UInt(5.W))
+  val rs2_addr = Output(UInt(5.W))
+  val rs1_rdata = Output(UInt(32.W))
+  val rs2_rdata = Output(UInt(32.W))
+  val rd_addr = Output(UInt(5.W))
+  val rd_wdata = Output(UInt(32.W))
+  val pc_rdata = Output(UInt(32.W))
+  val pc_wdata = Output(UInt(32.W))
+  val mem_addr = Output(UInt(32.W))
+  val mem_rmask = Output(UInt(4.W))
+  val mem_wmask = Output(UInt(4.W))
+  val mem_rdata = Output(UInt(32.W))
+  val mem_wdata = Output(UInt(32.W))
+  // val csr_mcycle_rmask = Output(UInt(64.W))
+  // val csr_mcycle_wmask = Output(UInt(64.W))
+  // val csr_mcycle_rdata = Output(UInt(64.W))
+  // val csr_mcycle_wdata = Output(UInt(64.W))
+  // val csr_minstret_rmask = Output(UInt(64.W))
+  // val csr_minstret_wmask = Output(UInt(64.W))
+  // val csr_minstret_rdata = Output(UInt(64.W))
+  // val csr_minstret_wdata = Output(UInt(64.W))
+}
 
 /**
  * Top level core object that connects the Frontend to the rest of the pipeline.
@@ -70,6 +103,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     val fcsr_rm = UInt(freechips.rocketchip.tile.FPConstants.RM_SZ.W)
     //val select = Input(UInt(log2Ceil(coreWidth).W))
     // val test_output = Output(Bool())
+    val rvfi = new RVFIIO
   })
   val select = 0.U
   io.ptw_tlb := DontCare
@@ -544,8 +578,10 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     when(io.ifu.fetchpacket.bits.uops(w).valid){
       implicit val XLEN = 64
       val tmpInst = io.ifu.fetchpacket.bits.uops(w).bits.debug_inst
+      // printf("[assume Inst] Channel:%d, Inst: %x\n", w.U, tmpInst)
       assume(
-        RVI.regImm(tmpInst) || RVI.regReg(tmpInst) || RVI.control(tmpInst)
+        RVI.regImm(tmpInst) || RVI.regReg(tmpInst) || RVI.control(tmpInst)|| RVI.loadStore(tmpInst),
+        "Invalid instruction"
       )
     }
   }
@@ -1484,18 +1520,36 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         resultRegWire(0) := 0.U
         //ConnectCheckerWb.setRegSource(resultRegWire)
       }
-    }
+  }
 
-  if(true) {
+  val enableRiscvFormal = true
+  val enableDifftest    = true
+  val enablechirvFormal = true
+
+  val checker_inst_bj_taken = Wire(Bool())
+  val checker_inst_bj_addr = Wire(UInt(vaddrBitsExtended.W))
+  checker_inst_bj_taken := false.B
+  checker_inst_bj_addr := 0.U
+  for (i <- 0 until numRobEntries) {
+    when(debug_br_res(i).valid && debug_br_res(i).rob_idx === rob.io.commit.uops(select).rob_idx) {
+        checker_inst_bj_taken := true.B
+        checker_inst_bj_addr  := debug_br_res(i).bj_addr
+    }
+  }
+  val checker_inst_npc = Wire(UInt(vaddrBitsExtended.W))
+  checker_inst_npc := Mux(rob.io.commit.uops(select).is_rvc, rob.io.commit.uops(select).debug_pc + 2.U, rob.io.commit.uops(select).debug_pc + 4.U)
+  val wData = Wire(Vec(coreWidth, UInt(xLen.W)))
+  for (w <- 0 until coreWidth) {
+    wData(w) := Mux(rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U, rob.io.commit.debug_wdata(w), 0.U)
+  }
+
+  if(enablechirvFormal) {
         val rvConfig = RVConfig(64, "MSU", "AC", functions = Seq("Privileged"/*, "TLB"*/))
-        val checker = Module(new CheckerWithWB(checkMem = false)(rvConfig))
+        val checker = Module(new CheckerWithWB(checkMem = true)(rvConfig))
+        // val checker = Module(new CheckerWithWB(checkMem = true)(rvConfig))
         implicit val XLEN: Int = xLen
         val CheckerCsr = ConnectCheckerWb.makeCSRSource()(64,rvConfig)
 
-        val wData = Wire(Vec(coreWidth, UInt(xLen.W)))
-        for (w <- 0 until coreWidth) {
-          wData(w) := Mux(rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U, rob.io.commit.debug_wdata(w), 0.U)
-        }
         checker.io.wb.data     := wData(select)
         checker.io.wb.dest     := rob.io.commit.uops(select).ldst
         checker.io.wb.valid    := rob.io.commit.uops(select).rf_wen
@@ -1507,22 +1561,18 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         checker.io.instCommit.inst  := rob.io.commit.uops(select).debug_inst
         checker.io.instCommit.pc    := rob.io.commit.uops(select).debug_pc
 
-        val checker_inst_bj_taken = Wire(Bool())
-        val checker_inst_bj_addr = Wire(UInt(vaddrBitsExtended.W))
-        checker_inst_bj_taken := false.B
-        checker_inst_bj_addr := 0.U
-        for (i <- 0 until numRobEntries) {
-          when(debug_br_res(i).valid && debug_br_res(i).rob_idx === rob.io.commit.uops(select).rob_idx) {
-              checker_inst_bj_taken := true.B
-              checker_inst_bj_addr  := debug_br_res(i).bj_addr
-          }
-        }
-        val checker_inst_npc = Wire(UInt(vaddrBitsExtended.W))
-        checker_inst_npc := Mux(rob.io.commit.uops(select).is_rvc,
-                                      rob.io.commit.uops(select).debug_pc + 2.U,
-                                      rob.io.commit.uops(select).debug_pc + 4.U)
-
         checker.io.instCommit.npc  := Mux(checker_inst_bj_taken, checker_inst_bj_addr, checker_inst_npc)
+
+
+        checker.io.mem.get.read.valid     := io.lsu.debug_mem_info(select).read_valid
+        checker.io.mem.get.read.addr      := io.lsu.debug_mem_info(select).addr
+        checker.io.mem.get.read.memWidth  := io.lsu.debug_mem_info(select).mask
+        checker.io.mem.get.read.data      := io.lsu.debug_mem_info(select).rdata
+
+        checker.io.mem.get.write.valid    := io.lsu.debug_mem_info(select).write_valid
+        checker.io.mem.get.write.addr     := io.lsu.debug_mem_info(select).addr
+        checker.io.mem.get.write.memWidth := io.lsu.debug_mem_info(select).mask
+        checker.io.mem.get.write.data     := io.lsu.debug_mem_info(select).wdata
 
         checker.io.wb.csrAddr:= DontCare
         checker.io.wb.csrWr  := DontCare
@@ -1530,25 +1580,52 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         ConnectCheckerWb.setChecker(checker)(xLen, rvConfig)
   }
 
+  if(enableRiscvFormal){
+
+    io.rvfi.valid     := rob.io.commit.arch_valids(select)
+    io.rvfi.order     := 0.U // FIXME: how to get order?
+    io.rvfi.insn      := rob.io.commit.uops(select).debug_inst
+    io.rvfi.trap      := false.B // TODO: currently not supported
+    io.rvfi.halt      := false.B // TODO: currently not supported
+    io.rvfi.intr      := false.B // TODO: currently not supported
+    io.rvfi.mode      := 3.U     // TODO: currently only support M mode
+    io.rvfi.ixl       := 1.U
+    io.rvfi.rs1_addr  := rob.io.commit.uops(select).lrs1
+    io.rvfi.rs2_addr  := rob.io.commit.uops(select).lrs2
+    io.rvfi.rs1_rdata := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs1))
+    io.rvfi.rs2_rdata := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs2))
+    io.rvfi.rd_addr   := rob.io.commit.uops(select).ldst
+    io.rvfi.rd_wdata  := wData(select)
+    io.rvfi.pc_rdata  := rob.io.commit.uops(select).debug_pc
+    io.rvfi.pc_wdata  := Mux(checker_inst_bj_taken, checker_inst_bj_addr, checker_inst_npc)
+
+    // io.lsu.commit                  := rob.io.commit
+    io.rvfi.mem_addr  := io.lsu.debug_mem_info(select).addr
+    io.rvfi.mem_rmask := io.lsu.debug_mem_info(select).mask
+    io.rvfi.mem_wmask := io.lsu.debug_mem_info(select).mask
+    io.rvfi.mem_rdata := io.lsu.debug_mem_info(select).rdata
+    io.rvfi.mem_wdata := io.lsu.debug_mem_info(select).wdata
+  }
 
   if (true) {
     var new_commit_cnt = 0.U
-    for (w <- 0 until coreWidth){
-      val difftest = DifftestModule(new DiffInstrCommit, delay = 1, dontCare = true)
-      difftest.coreid := 0.U
-      difftest.index  := w.U
-      difftest.valid  := rob.io.commit.arch_valids(w)
-      difftest.pc     := rob.io.commit.uops(w).debug_pc
-      difftest.instr  := rob.io.commit.uops(w).debug_inst
-      difftest.skip   := 0.U // TBD...
-      difftest.isRVC  := rob.io.commit.uops(w).is_rvc
-      difftest.rfwen  := rob.io.commit.uops(w).rf_wen
-      // difftest.wdest  := TBD...
-      // difftest.wpdest := TBD...
-      // checker.io.instCommit.valid := difftest.valid
-      // checker.io.instCommit.inst  := difftest.instr
-      // checker.io.instCommit.pc    := difftest.pc
-      
+    if(enableDifftest) {
+      for (w <- 0 until coreWidth){
+        val difftest = DifftestModule(new DiffInstrCommit, delay = 1, dontCare = true)
+        difftest.coreid := 0.U
+        difftest.index  := w.U
+        difftest.valid  := rob.io.commit.arch_valids(w)
+        difftest.pc     := rob.io.commit.uops(w).debug_pc
+        difftest.instr  := rob.io.commit.uops(w).debug_inst
+        difftest.skip   := 0.U // TBD...
+        difftest.isRVC  := rob.io.commit.uops(w).is_rvc
+        difftest.rfwen  := rob.io.commit.uops(w).rf_wen
+        // difftest.wdest  := TBD...
+        // difftest.wpdest := TBD...
+        // checker.io.instCommit.valid := difftest.valid
+        // checker.io.instCommit.inst  := difftest.instr
+        // checker.io.instCommit.pc    := difftest.pc
+      }
     }
     for (w <- 0 until coreWidth) {
       val priv = RegNext(csr.io.status.prv) // erets change the privilege. Get the old one
