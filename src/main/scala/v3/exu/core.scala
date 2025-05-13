@@ -1563,16 +1563,22 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
 
         checker.io.instCommit.npc  := Mux(checker_inst_bj_taken, checker_inst_bj_addr, checker_inst_npc)
 
+        val memWidth = MuxLookup(io.lsu.debug_mem_info(select).size, 0.U, Seq(
+          "b00".U -> 8.U,
+          "b01".U -> 16.U,
+          "b10".U -> 32.U,
+          "b11".U -> 64.U
+        ))
+        val mem = ConnectCheckerWb.makeMemSource()(64)
+        mem.read.valid     := io.lsu.debug_mem_info(select).read_valid
+        mem.read.addr      := io.lsu.debug_mem_info(select).addr
+        mem.read.memWidth  := memWidth
+        mem.read.data      := io.lsu.debug_mem_info(select).rdata
 
-        checker.io.mem.get.read.valid     := io.lsu.debug_mem_info(select).read_valid
-        checker.io.mem.get.read.addr      := io.lsu.debug_mem_info(select).addr
-        checker.io.mem.get.read.memWidth  := io.lsu.debug_mem_info(select).mask
-        checker.io.mem.get.read.data      := io.lsu.debug_mem_info(select).rdata
-
-        checker.io.mem.get.write.valid    := io.lsu.debug_mem_info(select).write_valid
-        checker.io.mem.get.write.addr     := io.lsu.debug_mem_info(select).addr
-        checker.io.mem.get.write.memWidth := io.lsu.debug_mem_info(select).mask
-        checker.io.mem.get.write.data     := io.lsu.debug_mem_info(select).wdata
+        mem.write.valid    := io.lsu.debug_mem_info(select).write_valid
+        mem.write.addr     := io.lsu.debug_mem_info(select).addr
+        mem.write.memWidth := memWidth
+        mem.write.data     := io.lsu.debug_mem_info(select).wdata
 
         checker.io.wb.csrAddr:= DontCare
         checker.io.wb.csrWr  := DontCare

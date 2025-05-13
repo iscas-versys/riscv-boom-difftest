@@ -125,7 +125,8 @@ class LSUCoreIO(implicit p: Parameters) extends BoomBundle()(p)
     val read_valid  = Bool()
     val write_valid = Bool()
     val addr  = UInt(64.W)
-    val mask  = UInt(4.W)
+    val mask  = UInt(8.W)
+    val size  = UInt(2.W)
     val wdata  = Bits(64.W)
     val rdata  = Bits(64.W)
   }))
@@ -1508,18 +1509,19 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
         val wbdata = Mux(commit_store, stq(idx).bits.debug_wb_data, ldq(idx).bits.debug_wb_data)
         printf("MT tsc_reg: %x, uopc: %x, mem_cmd: %x, mem_size: %x, addr: %x, stdata: %x, wbdata: %x\n",
           io.core.tsc_reg, uop.uopc, uop.mem_cmd, uop.mem_size, addr, stdata, wbdata)
-          val mask = MuxLookup(uop.mem_size, "b0000".U)(
+          val mask = MuxLookup(uop.mem_size, "b0000_0000".U)(
             Seq(
-              "b00".U -> ("b0001".U << addr(1, 0)),
-              "b01".U -> ("b0011".U << addr(1, 0)),
-              "b10".U -> ("b1111".U), //FIXME:
-              "b11".U -> ("b1111".U)  //FIXME:
+              "b00".U -> ("b0000_0001".U << addr(1, 0)),
+              "b01".U -> ("b0000_0011".U << addr(1, 0)),
+              "b10".U -> ("b0000_1111".U),
+              "b11".U -> ("b1111_1111".U)
             )
           )
           io.core.debug_mem_info(w).read_valid  := commit_load
           io.core.debug_mem_info(w).write_valid := commit_store
           io.core.debug_mem_info(w).addr  := addr
           io.core.debug_mem_info(w).mask  := mask
+          io.core.debug_mem_info(w).size  := uop.mem_size
           io.core.debug_mem_info(w).wdata := stdata
           io.core.debug_mem_info(w).rdata := wbdata
       }.otherwise{
@@ -1527,6 +1529,7 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
           io.core.debug_mem_info(w).write_valid := 0.U
           io.core.debug_mem_info(w).addr        := 0.U
           io.core.debug_mem_info(w).mask        := 0.U
+          io.core.debug_mem_info(w).size        := 0.U
           io.core.debug_mem_info(w).wdata       := 0.U
           io.core.debug_mem_info(w).rdata       := 0.U
       }
