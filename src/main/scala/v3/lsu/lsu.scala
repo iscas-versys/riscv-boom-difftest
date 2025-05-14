@@ -1522,7 +1522,12 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
           io.core.debug_mem_info(w).addr  := addr
           io.core.debug_mem_info(w).mask  := mask
           io.core.debug_mem_info(w).size  := uop.mem_size
-          io.core.debug_mem_info(w).wdata := stdata
+          io.core.debug_mem_info(w).wdata := MuxLookup(uop.mem_size, stdata, Seq(
+            "b00".U -> stdata(7, 0),
+            "b01".U -> stdata(15, 0),
+            "b10".U -> stdata(31, 0),
+            "b11".U -> stdata
+          ))
           io.core.debug_mem_info(w).rdata := wbdata
       }.otherwise{
           io.core.debug_mem_info(w).read_valid  := 0.U
