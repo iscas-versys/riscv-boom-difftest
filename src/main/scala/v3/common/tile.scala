@@ -6,7 +6,8 @@
 package boom.v3.common
 
 import chisel3._
-import chisel3.util.{RRArbiter, Queue}
+import chisel3.util._
+import chisel3.util.experimental.BoringUtils
 
 import scala.collection.mutable.{ListBuffer}
 
@@ -163,41 +164,48 @@ class BoomTileModuleImp(outer: BoomTile) extends BaseTileModuleImp(outer){
 
   val hellaCachePorts  = ListBuffer[HellaCacheIO]()
 
-  val io_rvfi = IO(new RVFIIO)
-  io_rvfi := core.io.rvfi
+  val rvfi = IO(new RVFIIO)
+  // val io_sel  = IO(new Bundle {
+  //   val select = Input(UInt(log2Ceil(outer.boomParams.core.decodeWidth).W))
+  // })
+  rvfi := core.io.rvfi
+  val flying_select = Wire(UInt(log2Ceil(outer.boomParams.core.decodeWidth).W))
+  flying_select := DontCare
+  BoringUtils.addSink(flying_select, "flying_select")
+  core.io.select := flying_select
 
-  when(io_rvfi.valid){
+  when(rvfi.valid){
     printf("[Debug] Valid: %d, Order: %d, Insn: %x, Trap: %d, Halt: %d, Intr: %d, Mode: %d\n",
-      io_rvfi.valid,
-      io_rvfi.order,
-      io_rvfi.insn,
-      io_rvfi.trap,
-      io_rvfi.halt,
-      io_rvfi.intr,
-      io_rvfi.mode
+      rvfi.valid,
+      rvfi.order,
+      rvfi.insn,
+      rvfi.trap,
+      rvfi.halt,
+      rvfi.intr,
+      rvfi.mode
     )
 
     printf("[Debug] ixl: %d, rs1_addr: %d, rs2_addr: %d, rs1_rdata: %x, rs2_rdata: %x, rd_addr: %d, rd_wdata: %x\n",
-      io_rvfi.ixl,
-      io_rvfi.rs1_addr,
-      io_rvfi.rs2_addr,
-      io_rvfi.rs1_rdata,
-      io_rvfi.rs2_rdata,
-      io_rvfi.rd_addr,
-      io_rvfi.rd_wdata
+      rvfi.ixl,
+      rvfi.rs1_addr,
+      rvfi.rs2_addr,
+      rvfi.rs1_rdata,
+      rvfi.rs2_rdata,
+      rvfi.rd_addr,
+      rvfi.rd_wdata
     )
 
     printf("[Debug] pc_rdata: %x, pc_wdata: %x\n",
-      io_rvfi.pc_rdata,
-      io_rvfi.pc_wdata
+      rvfi.pc_rdata,
+      rvfi.pc_wdata
     )
     
     printf("[Debug] mem_addr: %x, mem_rmask: %x, mem_wmask: %x, mem_rdata: %x, mem_wdata: %x\n",
-      io_rvfi.mem_addr,
-      io_rvfi.mem_rmask,
-      io_rvfi.mem_wmask,
-      io_rvfi.mem_rdata,
-      io_rvfi.mem_wdata
+      rvfi.mem_addr,
+      rvfi.mem_rmask,
+      rvfi.mem_wmask,
+      rvfi.mem_rdata,
+      rvfi.mem_wdata
     )
   }
 
