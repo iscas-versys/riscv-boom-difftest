@@ -86,30 +86,31 @@ class WithNBMCBooms(n: Int = 1) extends Config(
       val prev = up(TilesLocated(InSubsystem), site)
       val idOffset = up(NumTiles)
       (0 until n).map { i =>
-        val coreWidth = 1
-        val memWidth = 1
+        // val coreWidth = 2
+        // val memWidth = 1
         BoomTileAttachParams(
           tileParams = BoomTileParams(
             core = BoomCoreParams(
+              // useCompressed = false, // seems not work
               fetchWidth = 4,
-              decodeWidth = coreWidth,
-              numRobEntries = 4,
+              decodeWidth = 2,
+              numRobEntries = 64,
               issueParams = Seq(
-                IssueParams(issueWidth=1, numEntries=4, iqType=IQT_MEM.litValue, dispatchWidth=1),
-                IssueParams(issueWidth=1, numEntries=8, iqType=IQT_INT.litValue, dispatchWidth=1)
+                IssueParams(issueWidth=1, numEntries=12, iqType=IQT_MEM.litValue, dispatchWidth=2),
+                IssueParams(issueWidth=2, numEntries=20, iqType=IQT_INT.litValue, dispatchWidth=2)
                 ),
-              numIntPhysRegisters = 33,
-              numLdqEntries = 4,
-              numStqEntries = 4,
-              maxBrCount = 4,
-              numFetchBufferEntries = 8,
+              numIntPhysRegisters = 80,
+              numLdqEntries = 16,
+              numStqEntries = 16,
+              maxBrCount = 12,
+              numFetchBufferEntries = 16,
               ftq = FtqParameters(nEntries=8),
-              nPerfCounters = 2,
-              numRXQEntries = 4,
-              numRCQEntries = 4,
+              nPerfCounters = 6,
+              // numRXQEntries = 4,
+              // numRCQEntries = 4,
               // BPU
               enableBranchPrediction = false,
-              numRasEntries = 0,
+              // numRasEntries = 0,
               // FPU
               fpu = None,
               usingFPU = false,
