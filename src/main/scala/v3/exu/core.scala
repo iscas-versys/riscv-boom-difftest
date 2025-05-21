@@ -1599,8 +1599,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
 
   if(enablechirvFormal) {
         val rvConfig = RVConfig(64, "MSU", "AC", functions = Seq("Privileged"/*, "TLB"*/))
-        val checker = Module(new CheckerWithWB(checkMem = true)(rvConfig))
-        // val checker = Module(new CheckerWithWB(checkMem = true)(rvConfig))
+        val checker = Module(new CheckerWithWB(checkMem = true, checkNPC = true)(rvConfig))
         implicit val XLEN: Int = xLen
         val CheckerCsr = ConnectCheckerWb.makeCSRSource()(64,rvConfig)
 
