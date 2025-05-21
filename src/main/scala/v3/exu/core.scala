@@ -64,17 +64,17 @@ class RVFIIO extends Bundle {
   val ixl = Output(UInt(2.W))
   val rs1_addr = Output(UInt(5.W))
   val rs2_addr = Output(UInt(5.W))
-  val rs1_rdata = Output(UInt(32.W))
-  val rs2_rdata = Output(UInt(32.W))
+  val rs1_rdata = Output(UInt(64.W))
+  val rs2_rdata = Output(UInt(64.W))
   val rd_addr = Output(UInt(5.W))
-  val rd_wdata = Output(UInt(32.W))
-  val pc_rdata = Output(UInt(32.W))
-  val pc_wdata = Output(UInt(32.W))
-  val mem_addr = Output(UInt(32.W))
-  val mem_rmask = Output(UInt(4.W))
-  val mem_wmask = Output(UInt(4.W))
-  val mem_rdata = Output(UInt(32.W))
-  val mem_wdata = Output(UInt(32.W))
+  val rd_wdata = Output(UInt(64.W))
+  val pc_rdata = Output(UInt(64.W))
+  val pc_wdata = Output(UInt(64.W))
+  val mem_addr = Output(UInt(64.W))
+  val mem_rmask = Output(UInt(8.W))
+  val mem_wmask = Output(UInt(8.W))
+  val mem_rdata = Output(UInt(64.W))
+  val mem_wdata = Output(UInt(64.W))
   // val csr_mcycle_rmask = Output(UInt(64.W))
   // val csr_mcycle_wmask = Output(UInt(64.W))
   // val csr_mcycle_rdata = Output(UInt(64.W))
@@ -101,11 +101,11 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     val ptw_tlb = new freechips.rocketchip.rocket.TLBPTWIO()
     val trace = Output(new TraceBundle)
     val fcsr_rm = UInt(freechips.rocketchip.tile.FPConstants.RM_SZ.W)
-    //val select = Input(UInt(log2Ceil(coreWidth).W))
+    val select = Input(UInt(log2Ceil(coreWidth).W))
     // val test_output = Output(Bool())
     val rvfi = new RVFIIO
   })
-  val select = 0.U
+  // val select = 0.U
   io.ptw_tlb := DontCare
   io.ptw := DontCare
   io.ifu := DontCare
@@ -579,10 +579,10 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
       implicit val XLEN = 64
       val tmpInst = io.ifu.fetchpacket.bits.uops(w).bits.debug_inst
       // printf("[assume Inst] Channel:%d, Inst: %x\n", w.U, tmpInst)
-      assume(
-        RVI.regImm(tmpInst) || RVI.regReg(tmpInst) || RVI.control(tmpInst)|| RVI.loadStore(tmpInst),
-        "Invalid instruction"
-      )
+      // assume(
+      //   RVI.regImm(tmpInst) || RVI.regReg(tmpInst) || RVI.control(tmpInst)|| RVI.loadStore(tmpInst),
+      //   "Invalid instruction"
+      // )
     }
   }
   // when (io.ifu.commit.valid){
@@ -669,6 +669,35 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   jmp_unit.io.get_ftq_pc.next_val         := io.ifu.get_pc(0).next_val
   jmp_unit.io.get_ftq_pc.next_pc          := io.ifu.get_pc(0).next_pc
 
+  val debug_jal_res = RegInit(VecInit(Seq.fill(numRobEntries)(0.U.asTypeOf(new DebugBrInfo))))
+  val debug_jal_res_idx = RegInit(0.U(log2Ceil(numRobEntries).W))
+  when(jmp_unit.io.req.valid && jmp_unit.io.req.bits.uop.is_jal) {
+    debug_jal_res(debug_jal_res_idx).valid := true.B
+    debug_jal_res(debug_jal_res_idx).rob_idx := jmp_unit.io.req.bits.uop.rob_idx
+    val debug_jal_target_offset = ImmGen(jmp_unit.io.req.bits.uop.imm_packed, jmp_unit.io.req.bits.uop.ctrl.imm_sel)
+    debug_jal_res(debug_jal_res_idx).bj_addr := ((AlignPCToBoundary(io.ifu.get_pc(0).pc, icBlockBytes) | jmp_unit.io.req.bits.uop.pc_lob).asSInt
+      + debug_jal_target_offset(20,0).asSInt + (Fill(vaddrBitsExtended-1, jmp_unit.io.req.bits.uop.edge_inst) << 1).asSInt).asUInt
+    debug_jal_res_idx := Mux(
+      debug_jal_res_idx === (numRobEntries - 1).U,
+      0.U,
+      debug_jal_res_idx + 1.U)
+  }
+  when(rob.io.commit.valids.reduce(_|_)) {
+    for (i <- 0 until coreWidth) {
+        when(rob.io.commit.valids(i)) {
+            for (j <- 0 until numRobEntries) {
+                when(debug_jal_res(j).valid && debug_jal_res(j).rob_idx === rob.io.commit.uops(i).rob_idx) {
+                    debug_jal_res(j).valid := false.B
+                }
+            }
+        }
+    }
+  }
+  when(RegNext(rob.io.flush.valid)) {
+    for (i <- 0 until numRobEntries) {
+      debug_jal_res(i).valid := false.B
+    }
+  }
 
   // Frontend Exception Requests
   val xcpt_idx = PriorityEncoder(dec_xcpts)
@@ -1499,6 +1528,10 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   val int_regfile_state = RegInit(VecInit(Seq.fill(32)(0.U(xLen.W))))
   val resultRegWire = Wire(Vec(32, UInt(xLen.W)))
 
+  // val int_regfile_state_view = Wire(Vec(coreWidth, Vec(32, UInt(xLen.W))))
+  val int_regfile_state_view = Wire(Vec(coreWidth, Vec(32, UInt(xLen.W))))
+  int_regfile_state_view(0) := int_regfile_state
+
   if (true) {
       val difftest = DifftestModule(new DiffArchIntRegState)
       difftest.coreid := 0.U
@@ -1520,11 +1553,25 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         resultRegWire(0) := 0.U
         //ConnectCheckerWb.setRegSource(resultRegWire)
       }
+
+      for(w <- 0 until coreWidth - 1) {
+        val base = int_regfile_state_view(w)
+        val next = Wire(Vec(32, UInt(xLen.W)))
+        for (i <- 0 until 32) { next(i) := base(i) }
+        when (rob.io.commit.arch_valids(w) && rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U) {
+          next(rob.io.commit.uops(w).ldst) := rob.io.commit.debug_wdata(w)
+        }
+        int_regfile_state_view(w + 1) := next
+      }
   }
 
   val enableRiscvFormal = true
   val enableDifftest    = true
-  val enablechirvFormal = true
+  val enablechirvFormal = false
+
+  // val sel = RegEnable(DontCare, 0.U(log2Ceil(retireWidth).W), rob.io.commit.arch_valids.asUInt.orR)
+  // val select = sel.asUInt
+  val select = io.select
 
   val checker_inst_bj_taken = Wire(Bool())
   val checker_inst_bj_addr = Wire(UInt(vaddrBitsExtended.W))
@@ -1534,7 +1581,14 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     when(debug_br_res(i).valid && debug_br_res(i).rob_idx === rob.io.commit.uops(select).rob_idx) {
         checker_inst_bj_taken := true.B
         checker_inst_bj_addr  := debug_br_res(i).bj_addr
+    }.elsewhen(debug_jal_res(i).valid && debug_jal_res(i).rob_idx === rob.io.commit.uops(select).rob_idx) {
+        checker_inst_bj_taken := true.B
+        checker_inst_bj_addr := debug_jal_res(i).bj_addr
     }
+  }
+  when(rob.io.flush.valid) {
+    checker_inst_bj_taken := false.B
+    checker_inst_bj_addr  := 0.U
   }
   val checker_inst_npc = Wire(UInt(vaddrBitsExtended.W))
   checker_inst_npc := Mux(rob.io.commit.uops(select).is_rvc, rob.io.commit.uops(select).debug_pc + 2.U, rob.io.commit.uops(select).debug_pc + 4.U)
@@ -1555,8 +1609,10 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         checker.io.wb.valid    := rob.io.commit.uops(select).rf_wen
         checker.io.wb.r1Addr   := rob.io.commit.uops(select).lrs1
         checker.io.wb.r2Addr   := rob.io.commit.uops(select).lrs2
-        checker.io.wb.r1Data   := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs1))
-        checker.io.wb.r2Data   := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs2))
+        // checker.io.wb.r1Data   := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs1))
+        // checker.io.wb.r2Data   := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs2))
+        checker.io.wb.r1Data   := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state_view(select)(rob.io.commit.uops(select).lrs1))
+        checker.io.wb.r2Data   := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state_view(select)(rob.io.commit.uops(select).lrs2))
         checker.io.instCommit.valid := rob.io.commit.arch_valids(select)
         checker.io.instCommit.inst  := rob.io.commit.uops(select).debug_inst
         checker.io.instCommit.pc    := rob.io.commit.uops(select).debug_pc
@@ -1569,17 +1625,25 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
           "b10".U -> 32.U,
           "b11".U -> 64.U
         ))
+
+
         val mem = ConnectCheckerWb.makeMemSource()(64)
         mem.read.valid     := io.lsu.debug_mem_info(select).read_valid
         mem.read.addr      := io.lsu.debug_mem_info(select).addr
         mem.read.memWidth  := memWidth
         mem.read.data      := io.lsu.debug_mem_info(select).rdata
 
+        when(mem.read.valid){
+          printf("read: addr = 0x%x, data = 0x%x\n", io.lsu.debug_mem_info(select).addr, io.lsu.debug_mem_info(select).rdata)
+        }
         mem.write.valid    := io.lsu.debug_mem_info(select).write_valid
         mem.write.addr     := io.lsu.debug_mem_info(select).addr
         mem.write.memWidth := memWidth
         mem.write.data     := io.lsu.debug_mem_info(select).wdata
 
+        when(mem.write.valid){
+          printf("write: addr = 0x%x, data = 0x%x\n", io.lsu.debug_mem_info(select).addr, io.lsu.debug_mem_info(select).wdata)
+        }
         checker.io.wb.csrAddr:= DontCare
         checker.io.wb.csrWr  := DontCare
         checker.io.wb.csrNdata := DontCare
@@ -1598,17 +1662,28 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     io.rvfi.ixl       := 1.U
     io.rvfi.rs1_addr  := rob.io.commit.uops(select).lrs1
     io.rvfi.rs2_addr  := rob.io.commit.uops(select).lrs2
-    io.rvfi.rs1_rdata := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs1))
-    io.rvfi.rs2_rdata := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs2))
-    io.rvfi.rd_addr   := rob.io.commit.uops(select).ldst
+    // io.rvfi.rs1_rdata := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs1))
+    // io.rvfi.rs2_rdata := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs2))
+    io.rvfi.rs1_rdata := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state_view(select)(rob.io.commit.uops(select).lrs1))
+    io.rvfi.rs2_rdata := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state_view(select)(rob.io.commit.uops(select).lrs2))
+    when(io.rvfi.valid){
+      printf("Inst: %x rs1_rdata: 0x%x, rs2_rdata: 0x%x oldrs1_data: 0x%x oldrs2_data: 0x%x\n", 
+        io.rvfi.insn, 
+        int_regfile_state_view(select)(rob.io.commit.uops(select).lrs1), 
+        int_regfile_state_view(select)(rob.io.commit.uops(select).lrs2),
+        int_regfile_state(rob.io.commit.uops(select).lrs1),
+        int_regfile_state(rob.io.commit.uops(select).lrs2)
+      )
+    }
+    io.rvfi.rd_addr   := Mux(rob.io.commit.uops(select).rf_wen, rob.io.commit.uops(select).ldst, 0.U)
     io.rvfi.rd_wdata  := wData(select)
     io.rvfi.pc_rdata  := rob.io.commit.uops(select).debug_pc
     io.rvfi.pc_wdata  := Mux(checker_inst_bj_taken, checker_inst_bj_addr, checker_inst_npc)
 
     // io.lsu.commit                  := rob.io.commit
     io.rvfi.mem_addr  := io.lsu.debug_mem_info(select).addr
-    io.rvfi.mem_rmask := io.lsu.debug_mem_info(select).mask
-    io.rvfi.mem_wmask := io.lsu.debug_mem_info(select).mask
+    io.rvfi.mem_rmask := Mux(io.lsu.debug_mem_info(select).read_valid,  io.lsu.debug_mem_info(select).mask, 0.U)
+    io.rvfi.mem_wmask := Mux(io.lsu.debug_mem_info(select).write_valid, io.lsu.debug_mem_info(select).mask, 0.U)
     io.rvfi.mem_rdata := io.lsu.debug_mem_info(select).rdata
     io.rvfi.mem_wdata := io.lsu.debug_mem_info(select).wdata
   }
@@ -1646,7 +1721,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
       }
 
       when (rob.io.commit.arch_valids(w)) {
-        printf("%d 0x%x ", priv, Sext(rob.io.commit.uops(w).debug_pc(vaddrBits-1,0), xLen))
+        printf("Channel:%d %d 0x%x ", w.U, priv, Sext(rob.io.commit.uops(w).debug_pc(vaddrBits-1,0), xLen))
         printf_inst(rob.io.commit.uops(w))
         when (rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U) {
           printf(" x%d 0x%x\n", rob.io.commit.uops(w).ldst, rob.io.commit.debug_wdata(w))
