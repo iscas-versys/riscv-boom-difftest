@@ -1565,10 +1565,6 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
       }
   }
 
-  val enableRiscvFormal = true
-  val enableDifftest    = true
-  val enablechirvFormal = false
-
   // val sel = RegEnable(DontCare, 0.U(log2Ceil(retireWidth).W), rob.io.commit.arch_valids.asUInt.orR)
   // val select = sel.asUInt
   val select = io.select
@@ -1596,8 +1592,14 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   for (w <- 0 until coreWidth) {
     wData(w) := Mux(rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U, rob.io.commit.debug_wdata(w), 0.U)
   }
+  
+  println("initializing the core with formal verification, riscv_formal = %d, difftest = %d, chirv_formal = %d".format(
+    if(RISCV_FORMAL) 1 else 0,
+    if(DIFFTEST) 1 else 0,
+    if(CHIRVFORMAL) 1 else 0
+  ))  
 
-  if(enablechirvFormal) {
+  if(CHIRVFORMAL) {
         val rvConfig = RVConfig(64, "MSU", "AC", functions = Seq("Privileged"/*, "TLB"*/))
         val checker = Module(new CheckerWithWB(checkMem = true, checkNPC = true)(rvConfig))
         implicit val XLEN: Int = xLen
@@ -1649,7 +1651,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         ConnectCheckerWb.setChecker(checker)(xLen, rvConfig)
   }
 
-  if(enableRiscvFormal){
+  if(RISCV_FORMAL){
 
     io.rvfi.valid     := rob.io.commit.arch_valids(select)
     io.rvfi.order     := 0.U // FIXME: how to get order?
@@ -1685,11 +1687,13 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
     io.rvfi.mem_wmask := Mux(io.lsu.debug_mem_info(select).write_valid, io.lsu.debug_mem_info(select).mask, 0.U)
     io.rvfi.mem_rdata := io.lsu.debug_mem_info(select).rdata
     io.rvfi.mem_wdata := io.lsu.debug_mem_info(select).wdata
+  } else {
+    io.rvfi := DontCare
   }
 
   if (true) {
     var new_commit_cnt = 0.U
-    if(enableDifftest) {
+    if(DIFFTEST) {
       for (w <- 0 until coreWidth){
         val difftest = DifftestModule(new DiffInstrCommit, delay = 1, dontCare = true)
         difftest.coreid := 0.U
