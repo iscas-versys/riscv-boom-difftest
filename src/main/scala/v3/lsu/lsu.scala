@@ -1507,36 +1507,37 @@ class LSU(implicit p: Parameters, edge: TLEdgeOut) extends BoomModule()(p)
         val addr   = Mux(commit_store, stq(idx).bits.addr.bits, ldq(idx).bits.addr.bits)
         val stdata = Mux(commit_store, stq(idx).bits.data.bits, 0.U)
         val wbdata = Mux(commit_store, stq(idx).bits.debug_wb_data, ldq(idx).bits.debug_wb_data)
-        printf("MT tsc_reg: %x, uopc: %x, mem_cmd: %x, mem_size: %x, addr: %x, stdata: %x, wbdata: %x\n",
-          io.core.tsc_reg, uop.uopc, uop.mem_cmd, uop.mem_size, addr, stdata, wbdata)
-          val mask = MuxLookup(uop.mem_size, "b0000_0000".U)(
-            Seq(
-              "b00".U -> ("b0000_0001".U << addr(1, 0)),
-              "b01".U -> ("b0000_0011".U << addr(1, 0)),
-              "b10".U -> ("b0000_1111".U),
-              "b11".U -> ("b1111_1111".U)
-            )
+        val mask = MuxLookup(uop.mem_size, "b0000_0000".U)(
+          Seq(
+            "b00".U -> ("b0000_0001".U),
+            "b01".U -> ("b0000_0011".U),
+            "b10".U -> ("b0000_1111".U),
+            "b11".U -> ("b1111_1111".U)
           )
-          io.core.debug_mem_info(w).read_valid  := commit_load
-          io.core.debug_mem_info(w).write_valid := commit_store
-          io.core.debug_mem_info(w).addr  := addr
-          io.core.debug_mem_info(w).mask  := mask
-          io.core.debug_mem_info(w).size  := uop.mem_size
-          io.core.debug_mem_info(w).wdata := MuxLookup(uop.mem_size, stdata, Seq(
-            "b00".U -> stdata(7, 0),
-            "b01".U -> stdata(15, 0),
-            "b10".U -> stdata(31, 0),
-            "b11".U -> stdata
-          ))
-          io.core.debug_mem_info(w).rdata := wbdata
+        )
+        printf("MT tsc_reg: %x, uopc: %x, mem_cmd: %x, mem_size: %x, addr: %x, stdata: %x, wbdata: %x, mask: %x\n",
+          io.core.tsc_reg, uop.uopc, uop.mem_cmd, uop.mem_size, addr, stdata, wbdata, mask
+        )
+        io.core.debug_mem_info(w).read_valid  := commit_load
+        io.core.debug_mem_info(w).write_valid := commit_store
+        io.core.debug_mem_info(w).addr  := addr
+        io.core.debug_mem_info(w).mask  := mask
+        io.core.debug_mem_info(w).size  := uop.mem_size
+        io.core.debug_mem_info(w).wdata := MuxLookup(uop.mem_size, stdata, Seq(
+          "b00".U -> stdata(7, 0),
+          "b01".U -> stdata(15, 0),
+          "b10".U -> stdata(31, 0),
+          "b11".U -> stdata
+        ))
+        io.core.debug_mem_info(w).rdata := wbdata
       }.otherwise{
-          io.core.debug_mem_info(w).read_valid  := 0.U
-          io.core.debug_mem_info(w).write_valid := 0.U
-          io.core.debug_mem_info(w).addr        := 0.U
-          io.core.debug_mem_info(w).mask        := 0.U
-          io.core.debug_mem_info(w).size        := 0.U
-          io.core.debug_mem_info(w).wdata       := 0.U
-          io.core.debug_mem_info(w).rdata       := 0.U
+        io.core.debug_mem_info(w).read_valid  := 0.U
+        io.core.debug_mem_info(w).write_valid := 0.U
+        io.core.debug_mem_info(w).addr        := 0.U
+        io.core.debug_mem_info(w).mask        := 0.U
+        io.core.debug_mem_info(w).size        := 0.U
+        io.core.debug_mem_info(w).wdata       := 0.U
+        io.core.debug_mem_info(w).rdata       := 0.U
       }
     }
 
