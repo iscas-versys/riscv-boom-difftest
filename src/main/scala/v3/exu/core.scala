@@ -579,10 +579,12 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
       implicit val XLEN = 64
       val tmpInst = io.ifu.fetchpacket.bits.uops(w).bits.debug_inst
       // printf("[assume Inst] Channel:%d, Inst: %x\n", w.U, tmpInst)
-      // assume(
-      //   RVI.regImm(tmpInst) || RVI.regReg(tmpInst) || RVI.control(tmpInst)|| RVI.loadStore(tmpInst),
-      //   "Invalid instruction"
-      // )
+      if(CHIRVFORMAL){
+        assume(
+          RVI.regImm(tmpInst) || RVI.regReg(tmpInst) || RVI.control(tmpInst)|| RVI.loadStore(tmpInst),
+          "Invalid instruction"
+        )
+      }
     }
   }
   // when (io.ifu.commit.valid){
