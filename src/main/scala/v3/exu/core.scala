@@ -264,40 +264,30 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   b2.jalr_target := RegNext(jmp_unit.io.brinfo.jalr_target)
   b2.target_offset := oldest_mispredict.target_offset
 
-
   // Debug Branch Info
   class DebugBrInfo extends Bundle {
     val valid = Bool()
-    val rob_idx = UInt(log2Ceil(numRobEntries).W)
-    val bj_addr = UInt(vaddrBitsExtended.W)
+    val cfi_type = UInt(CFI_SZ.W)
+    val jalr_target = UInt(vaddrBitsExtended.W)
+    val target_offset = SInt(21.W)
   }
-  val debug_br_target = Wire(UInt(vaddrBitsExtended.W))
-  debug_br_target := ((AlignPCToBoundary(io.ifu.get_pc(1).pc, icBlockBytes) | b2.uop.pc_lob).asSInt 
-                  + b2.target_offset + (Fill(vaddrBitsExtended-1, b2.uop.edge_inst) << 1).asSInt).asUInt
-  val debug_bj_addr = Mux(b2.cfi_type === CFI_JALR, b2.jalr_target, debug_br_target)
-  val debug_br_res_idx = RegInit(0.U(log2Ceil(numRobEntries).W))
   val debug_br_res = RegInit(VecInit(Seq.fill(numRobEntries)(0.U.asTypeOf(new DebugBrInfo))))
-//   val debug_br_res = Vec(numRobEntries, RegInit(0.U.asTypeOf(new DebugBrInfo)))
 
-  when(b2.taken) {
-    debug_br_res(debug_br_res_idx).valid := true.B
-    debug_br_res(debug_br_res_idx).rob_idx := b2.uop.rob_idx
-    debug_br_res(debug_br_res_idx).bj_addr := debug_bj_addr
-
-    debug_br_res_idx := Mux(
-      debug_br_res_idx === (numRobEntries - 1).U,
-      0.U,
-      debug_br_res_idx + 1.U)
+  for(b <- brinfos) {
+    when(b.valid || b.taken) {
+        debug_br_res(b.uop.rob_idx).valid := b.taken
+        debug_br_res(b.uop.rob_idx).cfi_type := b.cfi_type
+        debug_br_res(b.uop.rob_idx).jalr_target := RegNext(jmp_unit.io.brinfo.jalr_target)
+        debug_br_res(b.uop.rob_idx).target_offset := b.target_offset
+    }
   }
-  when(rob.io.commit.valids.reduce(_|_)) {
-    for (i <- 0 until coreWidth) {
-        when(rob.io.commit.valids(i)) {
-            for (j <- 0 until numRobEntries) {
-                when(debug_br_res(j).valid && debug_br_res(j).rob_idx === rob.io.commit.uops(i).rob_idx) {
-                    debug_br_res(j).valid := false.B
-                }
-            }
-        }
+  for(i <- 0 until coreWidth) {
+    when(rob.io.commit.arch_valids(i)) {
+        val commit_rob_idx = rob.io.commit.uops(i).rob_idx
+        debug_br_res(commit_rob_idx).valid := false.B
+        debug_br_res(commit_rob_idx).cfi_type := 0.U
+        debug_br_res(commit_rob_idx).jalr_target := 0.U
+        debug_br_res(commit_rob_idx).target_offset := 0.S
     }
   }
   when(RegNext(rob.io.flush.valid)) {
@@ -670,36 +660,6 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   jmp_unit.io.get_ftq_pc.entry            := io.ifu.get_pc(0).entry
   jmp_unit.io.get_ftq_pc.next_val         := io.ifu.get_pc(0).next_val
   jmp_unit.io.get_ftq_pc.next_pc          := io.ifu.get_pc(0).next_pc
-
-  val debug_jal_res = RegInit(VecInit(Seq.fill(numRobEntries)(0.U.asTypeOf(new DebugBrInfo))))
-  val debug_jal_res_idx = RegInit(0.U(log2Ceil(numRobEntries).W))
-  when(jmp_unit.io.req.valid && jmp_unit.io.req.bits.uop.is_jal) {
-    debug_jal_res(debug_jal_res_idx).valid := true.B
-    debug_jal_res(debug_jal_res_idx).rob_idx := jmp_unit.io.req.bits.uop.rob_idx
-    val debug_jal_target_offset = ImmGen(jmp_unit.io.req.bits.uop.imm_packed, jmp_unit.io.req.bits.uop.ctrl.imm_sel)
-    debug_jal_res(debug_jal_res_idx).bj_addr := ((AlignPCToBoundary(io.ifu.get_pc(0).pc, icBlockBytes) | jmp_unit.io.req.bits.uop.pc_lob).asSInt
-      + debug_jal_target_offset(20,0).asSInt + (Fill(vaddrBitsExtended-1, jmp_unit.io.req.bits.uop.edge_inst) << 1).asSInt).asUInt
-    debug_jal_res_idx := Mux(
-      debug_jal_res_idx === (numRobEntries - 1).U,
-      0.U,
-      debug_jal_res_idx + 1.U)
-  }
-  when(rob.io.commit.valids.reduce(_|_)) {
-    for (i <- 0 until coreWidth) {
-        when(rob.io.commit.valids(i)) {
-            for (j <- 0 until numRobEntries) {
-                when(debug_jal_res(j).valid && debug_jal_res(j).rob_idx === rob.io.commit.uops(i).rob_idx) {
-                    debug_jal_res(j).valid := false.B
-                }
-            }
-        }
-    }
-  }
-  when(RegNext(rob.io.flush.valid)) {
-    for (i <- 0 until numRobEntries) {
-      debug_jal_res(i).valid := false.B
-    }
-  }
 
   // Frontend Exception Requests
   val xcpt_idx = PriorityEncoder(dec_xcpts)
@@ -1573,20 +1533,17 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
 
   val checker_inst_bj_taken = Wire(Bool())
   val checker_inst_bj_addr = Wire(UInt(vaddrBitsExtended.W))
+  val checker_commit_rob_idx = rob.io.commit.uops(select).rob_idx
+  val checker_commit_br_valid = rob.io.commit.arch_valids(select) && (rob.io.commit.uops(select).is_br || rob.io.commit.uops(select).is_jal || rob.io.commit.uops(select).is_jalr)
   checker_inst_bj_taken := false.B
   checker_inst_bj_addr := 0.U
-  for (i <- 0 until numRobEntries) {
-    when(debug_br_res(i).valid && debug_br_res(i).rob_idx === rob.io.commit.uops(select).rob_idx) {
-        checker_inst_bj_taken := true.B
-        checker_inst_bj_addr  := debug_br_res(i).bj_addr
-    }.elsewhen(debug_jal_res(i).valid && debug_jal_res(i).rob_idx === rob.io.commit.uops(select).rob_idx) {
-        checker_inst_bj_taken := true.B
-        checker_inst_bj_addr := debug_jal_res(i).bj_addr
-    }
-  }
   when(rob.io.flush.valid) {
     checker_inst_bj_taken := false.B
     checker_inst_bj_addr  := 0.U
+  }.elsewhen(debug_br_res(checker_commit_rob_idx).valid && checker_commit_br_valid) {
+    checker_inst_bj_taken := true.B
+    val checker_br_target = (rob.io.commit.uops(select).debug_pc.asSInt + debug_br_res(checker_commit_rob_idx).target_offset).asUInt
+    checker_inst_bj_addr  := Mux(debug_br_res(checker_commit_rob_idx).cfi_type === CFI_JALR, debug_br_res(checker_commit_rob_idx).jalr_target, checker_br_target)
   }
   val checker_inst_npc = Wire(UInt(vaddrBitsExtended.W))
   checker_inst_npc := Mux(rob.io.commit.uops(select).is_rvc, rob.io.commit.uops(select).debug_pc + 2.U, rob.io.commit.uops(select).debug_pc + 4.U)
