@@ -222,36 +222,27 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   // Debug Branch Info
   class DebugBrInfo extends Bundle {
     val valid = Bool()
-    val rob_idx = UInt(log2Ceil(numRobEntries).W)
-    val bj_addr = UInt(vaddrBitsExtended.W)
+    val cfi_type = UInt(CFI_SZ.W)
+    val jalr_target = UInt(vaddrBitsExtended.W)
+    val target_offset = SInt(21.W)
   }
-  val debug_br_target = Wire(UInt(vaddrBitsExtended.W))
-  debug_br_target := ((AlignPCToBoundary(io.ifu.get_pc(1).pc, icBlockBytes) | b2.uop.pc_lob).asSInt 
-                  + b2.target_offset + (Fill(vaddrBitsExtended-1, b2.uop.edge_inst) << 1).asSInt).asUInt
-  val debug_bj_addr = Mux(b2.cfi_type === CFI_JALR, b2.jalr_target, debug_br_target)
-  val debug_br_res_idx = RegInit(0.U(log2Ceil(numRobEntries).W))
   val debug_br_res = RegInit(VecInit(Seq.fill(numRobEntries)(0.U.asTypeOf(new DebugBrInfo))))
-//   val debug_br_res = Vec(numRobEntries, RegInit(0.U.asTypeOf(new DebugBrInfo)))
 
-  when(b2.taken) {
-    debug_br_res(debug_br_res_idx).valid := true.B
-    debug_br_res(debug_br_res_idx).rob_idx := b2.uop.rob_idx
-    debug_br_res(debug_br_res_idx).bj_addr := debug_bj_addr
-
-    debug_br_res_idx := Mux(
-      debug_br_res_idx === (numRobEntries - 1).U,
-      0.U,
-      debug_br_res_idx + 1.U)
+  for(b <- brinfos) {
+    when(b.valid || b.taken) {
+        debug_br_res(b.uop.rob_idx).valid := b.taken
+        debug_br_res(b.uop.rob_idx).cfi_type := b.cfi_type
+        debug_br_res(b.uop.rob_idx).jalr_target := RegNext(jmp_unit.io.brinfo.jalr_target)
+        debug_br_res(b.uop.rob_idx).target_offset := b.target_offset
+    }
   }
-  when(rob.io.commit.valids.reduce(_|_)) {
-    for (i <- 0 until coreWidth) {
-        when(rob.io.commit.valids(i)) {
-            for (j <- 0 until numRobEntries) {
-                when(debug_br_res(j).valid && debug_br_res(j).rob_idx === rob.io.commit.uops(i).rob_idx) {
-                    debug_br_res(j).valid := false.B
-                }
-            }
-        }
+  for(i <- 0 until coreWidth) {
+    when(rob.io.commit.arch_valids(i)) {
+        val commit_rob_idx = rob.io.commit.uops(i).rob_idx
+        debug_br_res(commit_rob_idx).valid := false.B
+        debug_br_res(commit_rob_idx).cfi_type := 0.U
+        debug_br_res(commit_rob_idx).jalr_target := 0.U
+        debug_br_res(commit_rob_idx).target_offset := 0.S
     }
   }
   when(RegNext(rob.io.flush.valid)) {
@@ -1439,19 +1430,23 @@ if (true) {
       difftest.pc     := rob.io.commit.uops(w).debug_pc
       val difftest_inst_bj_taken = Wire(Bool())
       val difftest_inst_bj_addr = Wire(UInt(vaddrBitsExtended.W))
+      val commit_rob_idx = rob.io.commit.uops(w).rob_idx
+      val commit_br_valid = rob.io.commit.uops(w).is_br || rob.io.commit.uops(w).is_jal || rob.io.commit.uops(w).is_jalr
       difftest_inst_bj_taken := false.B
       difftest_inst_bj_addr := 0.U
-      for (i <- 0 until numRobEntries) {
-        when(debug_br_res(i).valid && debug_br_res(i).rob_idx === rob.io.commit.uops(w).rob_idx) {
-            difftest_inst_bj_taken := true.B
-            difftest_inst_bj_addr := debug_br_res(i).bj_addr
-        }
+      when(rob.io.flush.valid) {
+        difftest_inst_bj_taken := false.B
+        difftest_inst_bj_addr := 0.U
+      }.elsewhen(debug_br_res(commit_rob_idx).valid && commit_br_valid) {
+        difftest_inst_bj_taken := true.B
+        val difftest_br_target = (rob.io.commit.uops(w).debug_pc.asSInt + debug_br_res(commit_rob_idx).target_offset).asUInt
+        difftest_inst_bj_addr := Mux(debug_br_res(commit_rob_idx).cfi_type === CFI_JALR, debug_br_res(commit_rob_idx).jalr_target, difftest_br_target)
       }
       val difftest_inst_npc = Wire(UInt(vaddrBitsExtended.W))
       difftest_inst_npc := Mux(rob.io.commit.uops(w).is_rvc,
                                     rob.io.commit.uops(w).debug_pc + 2.U,
                                     rob.io.commit.uops(w).debug_pc + 4.U)
-      difftest.npc    := Mux(difftest_inst_bj_taken, difftest_inst_bj_addr, difftest_inst_npc)
+    //   difftest.npc    := Mux(difftest_inst_bj_taken, difftest_inst_bj_addr, difftest_inst_npc)
       difftest.instr  := rob.io.commit.uops(w).debug_inst
       difftest.skip   := 0.U // TBD...
       difftest.isRVC  := rob.io.commit.uops(w).is_rvc
