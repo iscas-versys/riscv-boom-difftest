@@ -1635,7 +1635,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         ConnectCheckerWb.setChecker(checker)(xLen, rvConfig)
   }
 
-  if(true){
+  if(RISCV_FORMAL){
 
     io.rvfi.valid     := Cat(rob.io.commit.arch_valids(0.U), rob.io.commit.arch_valids(1.U))
     io.rvfi.order     := Cat(0.U, 1.U) // FIXME: how to get order?
