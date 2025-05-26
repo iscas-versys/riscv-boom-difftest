@@ -174,7 +174,7 @@ class BoomTileModuleImp(outer: BoomTile) extends BaseTileModuleImp(outer){
   BoringUtils.addSink(flying_select, "flying_select")
   core.io.select := flying_select
 
-  when(rvfi.valid){
+  when(rvfi.valid(0.U) || rvfi.valid(1.U)){
     printf("[Debug] Valid: %d, Order: %d, Insn: %x, Trap: %d, Halt: %d, Intr: %d, Mode: %d\n",
       rvfi.valid,
       rvfi.order,

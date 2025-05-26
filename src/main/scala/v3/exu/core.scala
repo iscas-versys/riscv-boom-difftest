@@ -54,27 +54,27 @@ import freechips.rocketchip.util.TestPrefixSums.test
 import chisel3.util.experimental.BoringUtils
 
 class RVFIIO extends Bundle {
-  val valid = Output(Bool())
-  val order = Output(UInt(64.W))
-  val insn = Output(UInt(32.W))
-  val trap = Output(Bool())
-  val halt = Output(Bool())
-  val intr = Output(Bool())
+  val valid = Output(UInt(2.W))//Output(Bool())
+  val order = Output(UInt(128.W))
+  val insn = Output(UInt(64.W))
+  val trap = Output(UInt(2.W))
+  val halt = Output(UInt(2.W))
+  val intr = Output(UInt(2.W))
   val mode = Output(UInt(2.W))
-  val ixl = Output(UInt(2.W))
-  val rs1_addr = Output(UInt(5.W))
-  val rs2_addr = Output(UInt(5.W))
-  val rs1_rdata = Output(UInt(64.W))
-  val rs2_rdata = Output(UInt(64.W))
-  val rd_addr = Output(UInt(5.W))
-  val rd_wdata = Output(UInt(64.W))
-  val pc_rdata = Output(UInt(64.W))
-  val pc_wdata = Output(UInt(64.W))
-  val mem_addr = Output(UInt(64.W))
-  val mem_rmask = Output(UInt(8.W))
-  val mem_wmask = Output(UInt(8.W))
-  val mem_rdata = Output(UInt(64.W))
-  val mem_wdata = Output(UInt(64.W))
+  val ixl = Output(UInt(4.W))
+  val rs1_addr = Output(UInt(10.W))
+  val rs2_addr = Output(UInt(10.W))
+  val rs1_rdata = Output(UInt(128.W))
+  val rs2_rdata = Output(UInt(128.W))
+  val rd_addr = Output(UInt(10.W))
+  val rd_wdata = Output(UInt(128.W))
+  val pc_rdata = Output(UInt(128.W))
+  val pc_wdata = Output(UInt(128.W))
+  val mem_addr = Output(UInt(128.W))
+  val mem_rmask = Output(UInt(16.W))
+  val mem_wmask = Output(UInt(16.W))
+  val mem_rdata = Output(UInt(128.W))
+  val mem_wdata = Output(UInt(128.W))
   // val csr_mcycle_rmask = Output(UInt(64.W))
   // val csr_mcycle_wmask = Output(UInt(64.W))
   // val csr_mcycle_rdata = Output(UInt(64.W))
@@ -1547,6 +1547,31 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
   }
   val checker_inst_npc = Wire(UInt(vaddrBitsExtended.W))
   checker_inst_npc := Mux(rob.io.commit.uops(select).is_rvc, rob.io.commit.uops(select).debug_pc + 2.U, rob.io.commit.uops(select).debug_pc + 4.U)
+
+  // RISCV-FORMAL
+  val rv_inst_bj_taken = WireInit(VecInit(Seq.fill(2)(false.B)))
+  val rv_inst_bj_addr = WireInit(VecInit(Seq.fill(2)(0.U(64.W))))
+  val rv_commit_rob_idx = WireInit(VecInit(Seq.fill(2)(0.U(robAddrSz.W))))
+  val rv_commit_br_valid = WireInit(VecInit(Seq.fill(2)(false.B)))
+  for(i <- 0 until 2) {
+    rv_commit_rob_idx(i.U) := rob.io.commit.uops(i.U).rob_idx
+    rv_commit_br_valid(i.U) := rob.io.commit.arch_valids(i.U) && (rob.io.commit.uops(i.U).is_br || rob.io.commit.uops(i.U).is_jal || rob.io.commit.uops(i.U).is_jalr)
+  }
+  for(i <- 0 until 2) {
+  when(rob.io.flush.valid) {
+    rv_inst_bj_taken(i.U) := false.B
+    rv_inst_bj_addr(i.U)  := 0.U
+  }.elsewhen(debug_br_res(rv_commit_rob_idx(i.U)).valid && rv_commit_br_valid(i.U)) {
+    rv_inst_bj_taken(i.U) := true.B
+    val rv_br_target = (rob.io.commit.uops(i.U).debug_pc.asSInt + debug_br_res(rv_commit_rob_idx(i.U)).target_offset).asUInt
+    rv_inst_bj_addr(i.U)  := Mux(debug_br_res(rv_commit_rob_idx(i.U)).cfi_type === CFI_JALR, debug_br_res(rv_commit_rob_idx(i.U)).jalr_target, rv_br_target)
+  }
+  }
+  val rv_inst_npc = WireInit(VecInit(Seq.fill(2)(0.U(64.W))))
+  for(i <- 0 until 2) {
+    rv_inst_npc(i.U) := Mux(rob.io.commit.uops(i.U).is_rvc, rob.io.commit.uops(i.U).debug_pc + 2.U, rob.io.commit.uops(i.U).debug_pc + 4.U)
+  }
+  //WDATA
   val wData = Wire(Vec(coreWidth, UInt(xLen.W)))
   for (w <- 0 until coreWidth) {
     wData(w) := Mux(rob.io.commit.uops(w).dst_rtype === RT_FIX && rob.io.commit.uops(w).ldst =/= 0.U, rob.io.commit.debug_wdata(w), 0.U)
@@ -1610,23 +1635,29 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         ConnectCheckerWb.setChecker(checker)(xLen, rvConfig)
   }
 
-  if(RISCV_FORMAL){
+  if(true){
 
-    io.rvfi.valid     := rob.io.commit.arch_valids(select)
-    io.rvfi.order     := 0.U // FIXME: how to get order?
-    io.rvfi.insn      := rob.io.commit.uops(select).debug_inst
-    io.rvfi.trap      := false.B // TODO: currently not supported
-    io.rvfi.halt      := false.B // TODO: currently not supported
-    io.rvfi.intr      := false.B // TODO: currently not supported
-    io.rvfi.mode      := 3.U     // TODO: currently only support M mode
-    io.rvfi.ixl       := 1.U
-    io.rvfi.rs1_addr  := rob.io.commit.uops(select).lrs1
-    io.rvfi.rs2_addr  := rob.io.commit.uops(select).lrs2
+    io.rvfi.valid     := Cat(rob.io.commit.arch_valids(0.U), rob.io.commit.arch_valids(1.U))
+    io.rvfi.order     := Cat(0.U, 1.U) // FIXME: how to get order?
+    io.rvfi.insn      := Cat(rob.io.commit.uops(0.U).debug_inst, rob.io.commit.uops(1.U).debug_inst)
+    io.rvfi.trap      := Cat(false.B, false.B) // TODO: currently not supported
+    io.rvfi.halt      := Cat(false.B, false.B) // TODO: currently not supported
+    io.rvfi.intr      := Cat(false.B, false.B) // TODO: currently not supported
+    io.rvfi.mode      := Cat(3.U, 3.U)     // TODO: currently only support M mode
+    io.rvfi.ixl       := Cat(1.U, 1.U)
+    io.rvfi.rs1_addr  := Cat(rob.io.commit.uops(0.U).lrs1, rob.io.commit.uops(1.U).lrs1)
+    io.rvfi.rs2_addr  := Cat(rob.io.commit.uops(0.U).lrs2, rob.io.commit.uops(1.U).lrs2)
     // io.rvfi.rs1_rdata := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs1))
     // io.rvfi.rs2_rdata := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state(rob.io.commit.uops(select).lrs2))
-    io.rvfi.rs1_rdata := Mux(rob.io.commit.uops(select).lrs1 === 0.U, 0.U, int_regfile_state_view(select)(rob.io.commit.uops(select).lrs1))
-    io.rvfi.rs2_rdata := Mux(rob.io.commit.uops(select).lrs2 === 0.U, 0.U, int_regfile_state_view(select)(rob.io.commit.uops(select).lrs2))
-    when(io.rvfi.valid){
+    io.rvfi.rs1_rdata := Cat(
+        Mux(rob.io.commit.uops(0.U).lrs1 === 0.U, 0.U, int_regfile_state_view(0.U)(rob.io.commit.uops(0.U).lrs1)),
+        Mux(rob.io.commit.uops(1.U).lrs1 === 0.U, 0.U, int_regfile_state_view(1.U)(rob.io.commit.uops(1.U).lrs1))
+    )
+    io.rvfi.rs2_rdata := Cat(
+        Mux(rob.io.commit.uops(0.U).lrs2 === 0.U, 0.U, int_regfile_state_view(0.U)(rob.io.commit.uops(0.U).lrs2)),
+        Mux(rob.io.commit.uops(1.U).lrs2 === 0.U, 0.U, int_regfile_state_view(1.U)(rob.io.commit.uops(1.U).lrs2))
+    )
+    when(io.rvfi.valid(0.U) || io.rvfi.valid(1.U)){
       printf("Inst: %x rs1_rdata: 0x%x, rs2_rdata: 0x%x oldrs1_data: 0x%x oldrs2_data: 0x%x\n", 
         io.rvfi.insn, 
         int_regfile_state_view(select)(rob.io.commit.uops(select).lrs1), 
@@ -1635,17 +1666,30 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
         int_regfile_state(rob.io.commit.uops(select).lrs2)
       )
     }
-    io.rvfi.rd_addr   := Mux(rob.io.commit.uops(select).rf_wen, rob.io.commit.uops(select).ldst, 0.U)
-    io.rvfi.rd_wdata  := wData(select)
-    io.rvfi.pc_rdata  := rob.io.commit.uops(select).debug_pc
-    io.rvfi.pc_wdata  := Mux(checker_inst_bj_taken, checker_inst_bj_addr, checker_inst_npc)
+    io.rvfi.rd_addr   := Cat(
+            Mux(rob.io.commit.uops(0.U).rf_wen, rob.io.commit.uops(0.U).ldst, 0.U),
+            Mux(rob.io.commit.uops(1.U).rf_wen, rob.io.commit.uops(1.U).ldst, 0.U)
+    )
+    io.rvfi.rd_wdata  := Cat(wData(0.U), wData(1.U))
+    io.rvfi.pc_rdata  := Cat(
+      Sext(rob.io.commit.uops(0.U).debug_pc, 64), Sext(rob.io.commit.uops(1.U).debug_pc,64))
+    io.rvfi.pc_wdata  := Cat(
+      Mux(rv_inst_bj_taken(0.U), rv_inst_bj_addr(0.U), rv_inst_npc(0.U)),
+      Mux(rv_inst_bj_taken(1.U), rv_inst_bj_addr(1.U), rv_inst_npc(1.U))
+    )
 
     // io.lsu.commit                  := rob.io.commit
-    io.rvfi.mem_addr  := io.lsu.debug_mem_info(select).addr
-    io.rvfi.mem_rmask := Mux(io.lsu.debug_mem_info(select).read_valid,  io.lsu.debug_mem_info(select).mask, 0.U)
-    io.rvfi.mem_wmask := Mux(io.lsu.debug_mem_info(select).write_valid, io.lsu.debug_mem_info(select).mask, 0.U)
-    io.rvfi.mem_rdata := io.lsu.debug_mem_info(select).rdata
-    io.rvfi.mem_wdata := io.lsu.debug_mem_info(select).wdata
+    io.rvfi.mem_addr  := Cat(io.lsu.debug_mem_info(0.U).addr, io.lsu.debug_mem_info(1.U).addr)
+    io.rvfi.mem_rmask := Cat(
+      Mux(io.lsu.debug_mem_info(0.U).read_valid,  io.lsu.debug_mem_info(0.U).mask, 0.U),
+      Mux(io.lsu.debug_mem_info(1.U).read_valid,  io.lsu.debug_mem_info(1.U).mask, 0.U)
+    )
+    io.rvfi.mem_wmask := Cat(
+      Mux(io.lsu.debug_mem_info(0.U).write_valid, io.lsu.debug_mem_info(0.U).mask, 0.U),
+      Mux(io.lsu.debug_mem_info(1.U).write_valid, io.lsu.debug_mem_info(1.U).mask, 0.U)
+    )
+    io.rvfi.mem_rdata := Cat(io.lsu.debug_mem_info(0.U).rdata, io.lsu.debug_mem_info(1.U).rdata)
+    io.rvfi.mem_wdata := Cat(io.lsu.debug_mem_info(0.U).wdata, io.lsu.debug_mem_info(1.U).wdata)
   } else {
     io.rvfi := DontCare
   }
