@@ -1168,7 +1168,7 @@ class BoomCore()(implicit p: Parameters) extends BoomModule
 
 
   if (usingFPU) {
-    // io.lsu.fp_stdata <> fp_pipeline.io.to_sdq
+    io.lsu.fp_stdata <> fp_pipeline.io.to_sdq
     io.lsu.fp_stdata.valid := false.B
     io.lsu.fp_stdata.bits  := DontCare
   }
